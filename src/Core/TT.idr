@@ -64,16 +64,16 @@ public export
 revOnto : (xs, vs : SnocList a) -> reverseOnto xs vs = xs ++ reverse vs
 revOnto xs [<] = Refl
 revOnto xs (vs :< v)
-    = rewrite revOnto (xs :< v) vs in
-        rewrite revOnto [<v] vs in
+    = rewrite Data.SnocList.revOnto (xs :< v) vs in
+        rewrite Data.SnocList.revOnto [<v] vs in
           rewrite appendAssociative xs [<v] (reverse vs) in Refl
 
 public export
 revNs : (vs, ns : SnocList a) -> reverse vs ++ reverse ns = reverse (ns ++ vs)
 revNs [<] ns = rewrite appendLinLeftNeutral (reverse ns) in Refl
 revNs (vs :< v) ns
-    = rewrite revOnto [<v] vs in
-        rewrite revOnto [<v] (ns ++ vs) in
+    = rewrite Data.SnocList.revOnto [<v] vs in
+        rewrite Data.SnocList.revOnto [<v] (ns ++ vs) in
           rewrite sym $ revNs vs ns in
             rewrite appendAssociative [<v] (reverse vs) (reverse ns) in Refl
 

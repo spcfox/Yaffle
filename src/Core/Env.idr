@@ -38,7 +38,7 @@ getBinderUnder : {vars : _} -> {idx : Nat} ->
                  (0 p : IsVar x idx vars) -> Env Term vars ->
                  Binder (Term (reverseOnto vars ns))
 getBinderUnder {idx = Z} {vars = vs :< v} ns First (env :< b)
-    = rewrite revOnto (vs :< x) ns in
+    = rewrite Data.SnocList.revOnto (vs :< x) ns in
         rewrite sym $ appendAssociative vs [<v] (reverse ns) in
                 map (weakenNs (sucR (reverse (mkSizeOf ns)))) b
 getBinderUnder {idx = S k} {vars = vs :< v} ns (Later lp) (env :< b)
@@ -62,7 +62,7 @@ getLetUnder : {idx : Nat} ->
                  (0 p : IsVar x idx vars) -> Env Term vars ->
                  Maybe (Term (reverseOnto vars ns))
 getLetUnder {idx = Z} {vars = vs :< v} ns w First (env :< Let _ _ val _)
-    = rewrite revOnto (vs :< x) ns in
+    = rewrite Data.SnocList.revOnto (vs :< x) ns in
         rewrite sym $ appendAssociative vs [<v] (reverse ns) in
                 Just $ weakenNs (sucR (reverse w)) val
 getLetUnder {idx = S k} {vars = vs :< v} ns w (Later lp) (env :< b)
