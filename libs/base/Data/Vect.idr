@@ -6,8 +6,9 @@ import Data.Nat
 import public Data.Fin
 import public Data.Zippable
 
-import Decidable.Equality
 import Control.Function
+import Decidable.Equality
+import Syntax.PreorderReasoning
 
 %default total
 
@@ -49,6 +50,11 @@ Biinjective Vect.(::) where
 -- Indexing into vectors
 --------------------------------------------------------------------------------
 
+export
+invertVectZ : (xs : Vect Z a) -> xs === []
+invertVectZ [] = Refl
+
+
 ||| All but the first element of the vector
 |||
 ||| ```idris example
@@ -66,6 +72,10 @@ tail (_::xs) = xs
 public export
 head : Vect (S len) elem -> elem
 head (x::_) = x
+
+export
+invertVectS : (xs : Vect (S n) a) -> xs === head xs :: tail xs
+invertVectS (_ :: _) = Refl
 
 ||| The last element of the vector
 |||
@@ -117,6 +127,14 @@ drop' 0 xs = rewrite minusZeroRight l in xs
 drop' (S k) [] = rewrite minusZeroLeft (S k) in []
 drop' (S k) (x :: xs) = drop' k xs
 
+||| Generate all of the Fin elements as a Vect whose length is the number of
+||| elements.
+|||
+||| Useful, for example, when one wants all the indices for specific Vect.
+public export
+allFins : (n : Nat) -> Vect n (Fin n)
+-- implemented using `map`, so the definition is further down
+
 ||| Extract a particular element from a vector
 |||
 ||| ```idris example
@@ -148,7 +166,7 @@ deleteAt FZ     (_::xs)        = xs
 deleteAt (FS k) [x]            = absurd k
 deleteAt (FS k) (x::xs@(_::_)) = x :: deleteAt k xs
 
-||| Replace an element at a particlar index with another
+||| Replace an element at a particular index with another
 |||
 ||| ```idris example
 ||| replaceAt 1 8 [1,2,3,4]
@@ -187,7 +205,7 @@ public export
 ||| `Vect n a -> a -> Vect (n + 1) a` which you get by using `++ [x]`
 |||
 ||| Snoc gets its name by reversing `cons`, indicating we are
-||| tacking on the element at the end rather than the begining.
+||| tacking on the element at the end rather than the beginning.
 ||| `append` would also be a suitable name.
 |||
 ||| @ xs The vector to be appended
@@ -251,7 +269,7 @@ replaceAtDiffIndexPreserves : (xs : Vect n a) -> (i, j : Fin n) -> Not (i = j) -
 replaceAtDiffIndexPreserves (_::_) FZ     FZ     co _ = absurd $ co Refl
 replaceAtDiffIndexPreserves (_::_) FZ     (FS _) _  _ = Refl
 replaceAtDiffIndexPreserves (_::_) (FS _) FZ     _  _ = Refl
-replaceAtDiffIndexPreserves (_::_) (FS z) (FS w) co y = replaceAtDiffIndexPreserves _ z w (co . cong FS) y
+replaceAtDiffIndexPreserves (_::_) (FS z) (FS w) co y = replaceAtDiffIndexPreserves _ z w (\zw => co $ cong FS zw) y
 
 --------------------------------------------------------------------------------
 -- Transformations
@@ -383,6 +401,10 @@ mapMaybe f (x::xs) =
        Just y  => (S len ** y :: ys)
        Nothing => (  len **      ys)
 
+-- now that we have `map`, we can finish implementing `allFins`
+allFins 0 = []
+allFins (S k) = FZ :: map FS (allFins k)
+
 --------------------------------------------------------------------------------
 -- Folds
 --------------------------------------------------------------------------------
@@ -391,6 +413,17 @@ public export
 foldrImpl : (t -> acc -> acc) -> acc -> (acc -> acc) -> Vect n t -> acc
 foldrImpl f e go [] = go e
 foldrImpl f e go (x::xs) = foldrImpl f e (go . (f x)) xs
+
+export
+foldrImplGoLemma
+  :  (x : a) -> (xs : Vect n a) -> (f : a -> b -> b) -> (e : b) -> (go : b -> b)
+  -> go (foldrImpl f e (f x) xs) === foldrImpl f e (go . (f x)) xs
+foldrImplGoLemma z []        f e go = Refl
+foldrImplGoLemma z (y :: ys) f e go = Calc $
+  |~ go (foldrImpl f e ((f z) . (f y)) ys)
+  ~~ go ((f z) (foldrImpl f e (f y) ys))   ... (cong go (sym (foldrImplGoLemma y ys f e (f z))))
+  ~~ (go . (f z)) (foldrImpl f e (f y) ys) ... (cong go Refl)
+  ~~ foldrImpl f e (go . (f z) . (f y)) ys ... (foldrImplGoLemma y ys f e (go . (f z)))
 
 public export
 implementation Foldable (Vect n) where
@@ -435,6 +468,7 @@ foldr1 f (x::y::xs) = f x (foldr1 f (y::xs))
 public export
 foldl1 : (t -> t -> t) -> Vect (S n) t -> t
 foldl1 f (x::xs) = foldl f x xs
+
 --------------------------------------------------------------------------------
 -- Scans
 --------------------------------------------------------------------------------
@@ -505,7 +539,7 @@ lookupBy : (p : key -> key -> Bool) -> (e : key) -> (xs : Vect n (key, val)) -> 
 lookupBy p e []           = Nothing
 lookupBy p e ((l, r)::xs) = if p e l then Just r else lookupBy p e xs
 
-||| Find the assocation of some key using the default Boolean equality test
+||| Find the association of some key using the default Boolean equality test
 |||
 ||| ```idris example
 ||| lookup 3 [(1, 'a'), (2, 'b'), (3, 'c')]
@@ -600,7 +634,7 @@ public export
 elemIndicesBy : (elem -> elem -> Bool) -> elem -> Vect m elem -> List (Fin m)
 elemIndicesBy p e = findIndices $ p e
 
-||| Find the indices of all elements uquals to the given one
+||| Find the indices of all elements equal to the given one
 |||
 ||| ```idris example
 ||| elemIndices 3 [1,2,3,4,3]
@@ -628,6 +662,14 @@ filter p (x::xs) =
       else
         (_ ** tail)
 
+public export
+nubByImpl : Vect m elem -> (elem -> elem -> Bool) -> Vect len elem -> (p ** Vect p elem)
+nubByImpl acc p []      = (_ ** [])
+nubByImpl acc p (x::xs) with (elemBy p x acc)
+  nubByImpl acc p (x :: xs) | True  = nubByImpl acc p xs
+  nubByImpl acc p (x :: xs) | False with (nubByImpl (x::acc) p xs)
+    nubByImpl acc p (x :: xs) | False | (_ ** tail) = (_ ** x::tail)
+
 ||| Make the elements of some vector unique by some test
 |||
 ||| ```idris example
@@ -635,14 +677,7 @@ filter p (x::xs) =
 ||| ```
 public export
 nubBy : (elem -> elem -> Bool) -> Vect len elem -> (p ** Vect p elem)
-nubBy = nubBy' []
-  where
-    nubBy' : forall len . Vect m elem -> (elem -> elem -> Bool) -> Vect len elem -> (p ** Vect p elem)
-    nubBy' acc p []      = (_ ** [])
-    nubBy' acc p (x::xs) with (elemBy p x acc)
-      nubBy' acc p (x :: xs) | True  = nubBy' acc p xs
-      nubBy' acc p (x :: xs) | False with (nubBy' (x::acc) p xs)
-        nubBy' acc p (x :: xs) | False | (_ ** tail) = (_ ** x::tail)
+nubBy = nubByImpl []
 
 ||| Make the elements of some vector unique by the default Boolean equality
 |||
@@ -677,7 +712,7 @@ delete : {len : _} ->
 delete = deleteBy (==)
 
 --------------------------------------------------------------------------------
--- Splitting and breaking lists
+-- Splitting and breaking vects
 --------------------------------------------------------------------------------
 
 ||| A tuple where the first element is a `Vect` of the `n` first elements and
@@ -712,6 +747,30 @@ partition p (x::xs) =
       ((S leftLen ** x::lefts), (rightLen ** rights))
     else
       ((leftLen ** lefts), (S rightLen ** x::rights))
+
+||| Split a vector whose length is a multiple of two numbers, k times n, into k
+||| sections of length n.
+|||
+||| ```idris example
+||| > kSplits 2 4 [1, 2, 3, 4, 5, 6, 7, 8]
+||| [[1, 2, 3, 4], [5, 6, 7, 8]]
+||| ```
+public export
+kSplits : (k, n : Nat) -> Vect (k * n) a -> Vect k (Vect n a)
+kSplits 0     n xs = []
+kSplits (S k) n xs = let (ys, zs) = splitAt n xs
+                     in ys :: kSplits k n zs
+
+||| Split a vector whose length is a multiple of two numbers, k times n, into n
+||| sections of length k.
+|||
+||| ```idris example
+||| > nSplits 2 4 [1, 2, 3, 4, 5, 6, 7, 8]
+||| [[1, 5], [2, 6], [3, 7], [4, 8]]
+||| ```
+public export
+nSplits : (k, n : Nat) -> Vect (k * n) a -> Vect n (Vect k a)
+-- implemented via matrix transposition, so the definition is further down
 
 --------------------------------------------------------------------------------
 -- Predicates
@@ -863,8 +922,26 @@ zipWith3IndexLinear _ (_::xs) (_::ys) (_::zs) FZ     = Refl
 zipWith3IndexLinear f (_::xs) (_::ys) (_::zs) (FS i) = zipWith3IndexLinear f xs ys zs i
 
 --------------------------------------------------------------------------------
+-- Permutation
+--------------------------------------------------------------------------------
+
+||| Rearrange the elements of a vector according to some permutation of its
+||| indices.
+||| @ v the vector whose elements to rearrange
+||| @ p the permutation to apply
+|||
+||| ```idris example
+||| > permute ['a', 'b', 'c', 'd'] [0, 3, 2, 1]
+||| ['a', 'd' , 'c' ,'b']
+||| ```
+export
+permute : (v : Vect len a) -> (p : Vect len (Fin len)) -> Vect len a
+permute v p = (`index` v) <$> p
+
+--------------------------------------------------------------------------------
 -- Matrix transposition
 --------------------------------------------------------------------------------
+
 ||| Transpose a `Vect` of `Vect`s, turning rows into columns and vice versa.
 |||
 ||| This is like zipping all the inner `Vect`s together and is equivalent to `traverse id` (`transposeTraverse`).
@@ -878,6 +955,9 @@ public export
 transpose : {n : _} -> (array : Vect m (Vect n elem)) -> Vect n (Vect m elem)
 transpose []        = replicate _ []                 -- = [| [] |]
 transpose (x :: xs) = zipWith (::) x (transpose xs) -- = [| x :: xs |]
+
+-- nSplits from earlier on
+nSplits k n = transpose . kSplits k n
 
 --------------------------------------------------------------------------------
 -- Applicative/Monad/Traversable

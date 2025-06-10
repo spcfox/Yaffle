@@ -53,10 +53,10 @@ Eq (Clock type) where
 public export
 Ord (Clock type) where
   compare (MkClock seconds1 nanoseconds1) (MkClock seconds2 nanoseconds2) =
-  case compare seconds1 seconds2 of
-    LT => LT
-    GT => GT
-    EQ => compare nanoseconds1 nanoseconds2
+    case compare seconds1 seconds2 of
+      LT => LT
+      GT => GT
+      EQ => compare nanoseconds1 nanoseconds2
 
 public export
 Show (Clock type) where
@@ -67,7 +67,7 @@ Show (Clock type) where
 ||| appropriate.
 |||
 ||| @ s   the number of digits used to display the seconds
-||| @ ns  the number of digits used to display the nanosecondns
+||| @ ns  the number of digits used to display the nanoseconds
 ||| @ clk the Clock whose contents to display
 export
 showTime : (s, ns : Nat) -> (clk : Clock type) -> String

@@ -7,16 +7,17 @@ module System.Future
 export
 data Future : Type -> Type where [external]
 
-%extern prim__makeFuture : {0 a : Type} -> Lazy a -> Future a
+%foreign "scheme:blodwen-make-future"
+prim__makeFuture : {0 a : Type} -> (() -> a) -> Future a
 
 %foreign "scheme:blodwen-await-future"
 prim__awaitFuture : {0 a : Type} -> Future a -> a
 
-export
+export %inline -- inlining is important for correct context in codegens
 fork : Lazy a -> Future a
-fork = prim__makeFuture
+fork l = prim__makeFuture $ \_ => force l
 
-export
+export %inline -- inlining is important for correct context in codegens
 await : Future a -> a
 await f = prim__awaitFuture f
 

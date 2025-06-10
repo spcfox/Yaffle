@@ -43,14 +43,14 @@ integerToNat x
 -- Define separately so we can spot the name when optimising Nats
 ||| Add two natural numbers.
 ||| @ x the number to case-split on
-||| @ y the other numberpublic export
+||| @ y the other number
 public export
 plus : (x : Nat) -> (y : Nat) -> Nat
 plus Z y = y
 plus (S k) y = S (plus k y)
 
-||| Subtract natural numbers.  If the second number is larger than the first,
-||| return 0.
+||| Subtract natural numbers.
+||| If the second number is larger than the first, return 0.
 public export
 minus : (left : Nat) -> Nat -> Nat
 minus Z        right     = Z
@@ -102,7 +102,7 @@ natToInteger (S k) = 1 + natToInteger k
 
 -- %builtin NaturalToInteger Prelude.Types.natToInteger
 
-||| Counts the number of elements that satify a predicate.
+||| Counts the number of elements that satisfy a predicate.
 public export
 count : Foldable t => (predicate : a -> Bool) -> t a -> Nat
 count predicate = foldMap @{%search} @{Additive} (\x => if predicate x then 1 else 0)
@@ -406,8 +406,8 @@ Ord a => Ord (List a) where
 
 namespace SnocList
 
-  infixl 7 <><
-  infixr 6 <>>
+  export infixl 7 <><
+  export infixr 6 <>>
 
   ||| 'fish': Action of lists on snoc-lists
   public export
@@ -867,13 +867,13 @@ fastPack : List Char -> String
 ||| ```
 public export
 unpack : String -> List Char
-unpack str = unpack' (prim__cast_IntegerInt (natToInteger (length str)) - 1) str []
+unpack str = go [] (length str)
   where
-    unpack' : Int -> String -> List Char -> List Char
-    unpack' pos str acc
-        = if pos < 0
-             then acc
-             else unpack' (assert_smaller pos (pos - 1)) str $ (assert_total $ prim__strIndex str pos) :: acc
+    go : List Char -> Nat -> List Char
+    go cs 0     = cs
+    go cs (S k) =
+      let ix := prim__cast_IntegerInt $ natToInteger k
+       in go (assert_total (prim__strIndex str ix) :: cs) k
 
 -- This function runs fast when compiled but won't compute at compile time.
 -- If you need to unpack strings at compile time, use Prelude.unpack.

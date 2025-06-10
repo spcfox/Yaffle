@@ -39,7 +39,7 @@ prim__usleep : Int -> PrimIO ()
 
 ||| Sleep for the specified number of seconds or, if signals are supported,
 ||| until an un-ignored signal arrives.
-||| The exact wall-clock time slept might slighly differ depending on how busy
+||| The exact wall-clock time slept might slightly differ depending on how busy
 ||| the system is and the resolution of the system's clock.
 |||
 ||| @ sec the number of seconds to sleep for
@@ -97,6 +97,47 @@ prim__setEnv : String -> String -> Int -> PrimIO Int
 %foreign supportC "idris2_unsetenv"
          supportNode "unsetEnv"
 prim__unsetEnv : String -> PrimIO Int
+
+%foreign "C:idris2_enableRawMode, libidris2_support, idris_support.h"
+prim__enableRawMode : (1 x : %World) -> IORes Int
+
+%foreign "C:idris2_resetRawMode, libidris2_support, idris_support.h"
+prim__resetRawMode : (1 x : %World) -> IORes ()
+
+||| `enableRawMode` enables raw mode for stdin, allowing characters
+||| to be read one at a time, without buffering or echoing.
+||| If `enableRawMode` is used, the program should call `resetRawMode` before
+||| exiting. Consider using `withRawMode` instead to ensure the tty is reset.
+|||
+||| This is not supported on windows.
+export
+enableRawMode : HasIO io => io (Either FileError ())
+enableRawMode =
+  case !(primIO prim__enableRawMode) of
+    0 => pure $ Right ()
+    _ => returnError
+
+||| `resetRawMode` resets stdin raw mode to original state if
+||| `enableRawMode` had been previously called.
+export
+resetRawMode : HasIO io => io ()
+resetRawMode = primIO prim__resetRawMode
+
+||| `withRawMode` performs a given operation after setting stdin to raw mode
+||| and ensure that stdin is reset to its original state afterwards.
+|||
+||| This is not supported on windows.
+export
+withRawMode : HasIO io =>
+              (onError   : FileError -> io a) ->
+              (onSuccess : () -> io a) ->
+              io a
+withRawMode onError onSuccess = do
+  Right () <- enableRawMode
+    | Left err => onError err
+  result <- onSuccess ()
+  resetRawMode
+  pure result
 
 ||| Retrieve the specified environment variable's value string, or `Nothing` if
 ||| there is no such environment variable.
@@ -253,11 +294,20 @@ data ExitCode : Type where
   ||| @prf   Proof that the int value is non-zero.
   ExitFailure : (errNo    : Int) -> (So (not $ errNo == 0)) => ExitCode
 
+export
+Cast Int ExitCode where
+  cast 0 = ExitSuccess
+  cast code = ExitFailure code @{believe_me Oh}
+
+export
+Cast ExitCode Int where
+  cast ExitSuccess = 0
+  cast (ExitFailure code) = code
+
 ||| Exit the program normally, with the specified status.
 export
 exitWith : HasIO io => ExitCode -> io a
-exitWith ExitSuccess = primIO $ believe_me $ prim__exit 0
-exitWith (ExitFailure code) = primIO $ believe_me $ prim__exit code
+exitWith = primIO . believe_me . prim__exit . cast
 
 ||| Exit the program with status value 1, indicating failure.
 ||| If you want to specify a custom status value, see `exitWith`.

@@ -10,7 +10,7 @@ import Data.List.Extra
 
 ||| Self-evidently correct but O(3 ^ (min mn)) complexity
 spec : String -> String -> Nat
-spec a b = loop (fastUnpack a) (fastUnpack b) where
+spec a b = loop (unpack a) (unpack b) where
 
   loop : List Char -> List Char -> Nat
   loop [] ys = length ys -- deletions
@@ -44,7 +44,7 @@ compute a b = do
   -- We introduce a specialised `read` for ease of use
   let get = \i, j => case !(read {io} mat i j) of
         Nothing => assert_total $
-          idris_crash "INTERNAL ERROR: Badly initialised matrix"
+          idris_crash "INTERNAL ERROR: compute -> Badly initialised matrix"
         Just n => pure n
 
   -- We fill the matrix from the bottom up, using the same formula we used

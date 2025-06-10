@@ -52,7 +52,7 @@ isJustT : Functor m => MaybeT m a -> m Bool
 isJustT = map isJust . runMaybeT
 
 ||| Run a `MaybeT` computation, handling the case of a result or no result
-||| seperately.
+||| separately.
 |||
 ||| This is a version of `maybe` lifted to work with `MaybeT`.
 public export
@@ -68,7 +68,9 @@ public export
 fromMaybeT : Monad m => m a -> MaybeT m a -> m a
 fromMaybeT v x = runMaybeT x >>= maybe v pure
 
-||| Return a value if a condition is met, or else no value.
+||| Return a value if a condition is met, or else no value. The condition
+||| only affects whether the `Maybe` produces a value; the effect is run
+||| either way.
 |||
 ||| This is a version of `toMaybe` lifted to work with `MaybeT`.
 public export

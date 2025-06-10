@@ -106,7 +106,7 @@ iterate f x  = x :: case f x of
 ||| CAUTION: Only terminates if `f` eventually returns `Nothing`.
 |||
 ||| @ f  a function which provides an element of `b` and the rest of `b`
-||| @ b  a structure contanining any number of elements
+||| @ b  a structure containing any number of elements
 covering
 public export
 unfoldr : (f : b -> Maybe (a, b)) -> b -> List a
@@ -270,7 +270,7 @@ public export
 deleteFirstsBy : (p : a -> b -> Bool) -> (source : List b) -> (undesirables : List a) -> List b
 deleteFirstsBy p = foldl (flip (deleteBy p))
 
-infix 7 \\
+export infix 7 \\
 
 ||| The non-associative list-difference.
 ||| A specialized form of @deleteFirstsBy@ where the predicate is equality under the @Eq@
@@ -279,7 +279,7 @@ infix 7 \\
 |||
 ||| In the following example, the result is `[2, 4]`.
 ||| ```idris example
-||| [1, 2, 3, 4] // [1, 3]
+||| [1, 2, 3, 4] \\ [1, 3]
 ||| ```
 |||
 public export
@@ -405,7 +405,7 @@ public export
 splitOn : Eq a => a -> List a -> List1 (List a)
 splitOn a = split (== a)
 
-||| Replace an element at a particlar index with another.
+||| Replace an element at a particular index with another.
 |||
 ||| ```idris example
 ||| replaceAt 2 6 [1, 2, 3, 4]
@@ -561,17 +561,26 @@ init [] impossible
 init [x] = []
 init (x :: xs@(_::_)) = x :: init xs
 
+||| Computes the minimum of a non-empty list
+public export
+minimum : Ord a => (xs : List a) -> {auto 0 _ : NonEmpty xs} -> a
+minimum (x :: xs) = foldl min x xs
+
+||| Attempt to deconstruct the list into a head and a tail.
+public export
+uncons' : List a -> Maybe (a, List a)
+uncons' []        = Nothing
+uncons' (x :: xs) = Just (x, xs)
+
 ||| Attempt to get the head of a list. If the list is empty, return `Nothing`.
 public export
 head' : List a -> Maybe a
-head' []      = Nothing
-head' (x::_) = Just x
+head' = map fst . uncons'
 
 ||| Attempt to get the tail of a list. If the list is empty, return `Nothing`.
 export
 tail' : List a -> Maybe (List a)
-tail' []      = Nothing
-tail' (_::xs) = Just xs
+tail' = map snd . uncons'
 
 ||| Attempt to retrieve the last element of a non-empty list.
 |||
@@ -781,7 +790,7 @@ prefixOfBy p = go [<] where
 |||
 ||| @ eq    a custom equality function for comparing the elements
 ||| @ left  the list which might be a prefix of `right`
-||| @ right the list of elements to compare againts
+||| @ right the list of elements to compare against
 public export
 isPrefixOfBy : (eq : a -> b -> Bool) ->
                (left : List a) -> (right : List b) -> Bool
@@ -826,6 +835,27 @@ public export
 isSuffixOf : Eq a => List a -> List a -> Bool
 isSuffixOf = isSuffixOfBy (==)
 
+||| Check whether the `left` list is an infix of the `right` one, according to
+||| `match`. Returns the shortest unmatched prefix, matched infix and the leftover suffix.
+public export
+infixOfBy : (match : a -> b -> Maybe m) ->
+            (left : List a) -> (right : List b) ->
+            Maybe (List b, List m, List b)
+infixOfBy _ []          right = Just ([], [], right)
+infixOfBy p left@(_::_) right = go [<] right where
+  go : (acc : SnocList b) -> List b -> Maybe (List b, List m, List b)
+  go _   []             = Nothing
+  go pre curr@(c::rest) = case prefixOfBy p left curr of
+    Just (inf, post) => Just (pre <>> [], inf, post)
+    Nothing          => go (pre:<c) rest
+
+||| Check whether the `left` is an infix of the `right` one, using the provided
+||| equality function to compare elements.
+public export
+isInfixOfBy : (eq : a -> b -> Bool) ->
+              (left : List a) -> (right : List b) -> Bool
+isInfixOfBy p n h = any (isPrefixOfBy p n) (tails h)
+
 ||| The isInfixOf function takes two lists and returns True iff the first list
 ||| is contained, wholly and intact, anywhere within the second.
 |||
@@ -838,7 +868,7 @@ isSuffixOf = isSuffixOfBy (==)
 |||
 public export
 isInfixOf : Eq a => List a -> List a -> Bool
-isInfixOf n h = any (isPrefixOf n) (tails h)
+isInfixOf = isInfixOfBy (==)
 
 ||| Transposes rows and columns of a list of lists.
 |||
@@ -899,6 +929,24 @@ groupWith f = groupBy (\x,y => f x == f y)
 public export
 groupAllWith : Ord b => (a -> b) -> List a -> List (List1 a)
 groupAllWith f = groupWith f . sortBy (comparing f)
+
+||| Partitions a list into fixed sized sublists.
+|||
+||| Note: The last list in the result might be shorter than the rest if
+|||       the input cannot evenly be split into groups of the same size.
+|||
+||| ```idris example
+||| grouped 3 [1..10] === [[1,2,3],[4,5,6],[7,8,9],[10]]
+||| ```
+public export
+grouped : (n : Nat) -> {auto 0 p : IsSucc n} -> List a -> List (List a)
+grouped _     []      = []
+grouped (S m) (x::xs) = go [<] [<x] m xs
+  where
+    go : SnocList (List a) -> SnocList a -> Nat -> List a -> List (List a)
+    go sxs sx c     []        = sxs <>> [sx <>> []]
+    go sxs sx 0     (x :: xs) = go (sxs :< (sx <>> [])) [<x] m xs
+    go sxs sx (S k) (x :: xs) = go sxs (sx :< x) k xs
 
 --------------------------------------------------------------------------------
 -- Properties

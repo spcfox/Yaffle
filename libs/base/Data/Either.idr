@@ -41,6 +41,12 @@ export
 Uninhabited (IsRight (Left x)) where
   uninhabited ItIsRight impossible
 
+||| Returns the `r` value of an `Either l r` which is proved `Right`.
+public export
+fromRight : (e : Either l r) -> {auto 0 isRight : IsRight e} -> r
+fromRight (Right r) = r
+fromRight (Left _) impossible
+
 ||| Proof that an `Either` is actually a Left value
 public export
 data IsLeft : Either a b -> Type where
@@ -49,6 +55,12 @@ data IsLeft : Either a b -> Type where
 export
 Uninhabited (IsLeft (Right x)) where
   uninhabited ItIsLeft impossible
+
+||| Returns the `l` value of an `Either l r` which is proved `Left`.
+public export
+fromLeft : (e : Either l r) -> {auto 0 isLeft : IsLeft e} -> l
+fromLeft (Right _) impossible
+fromLeft (Left l) = l
 
 --------------------------------------------------------------------------------
 -- Grouping values
@@ -105,6 +117,17 @@ public export
 mirror : Either a b -> Either b a
 mirror (Left  x) = Right x
 mirror (Right x) = Left x
+
+public export
+Zippable (Either a) where
+  zipWith f x y = [| f x y |]
+  zipWith3 f x y z = [| f x y z |]
+
+  unzipWith f (Left e) = (Left e, Left e)
+  unzipWith f (Right xy) = let (x, y) = f xy in (Right x, Right y)
+
+  unzipWith3 f (Left e) = (Left e, Left e, Left e)
+  unzipWith3 f (Right xyz) = let (x, y, z) = f xyz in (Right x, Right y, Right z)
 
 --------------------------------------------------------------------------------
 -- Bifunctor

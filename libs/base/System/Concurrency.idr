@@ -15,6 +15,8 @@ module System.Concurrency
 prim__setThreadData : {a : Type} -> a -> PrimIO ()
 %foreign "scheme:blodwen-get-thread-data"
 prim__getThreadData : (a : Type) -> PrimIO a
+%foreign "scheme,chez:get-thread-id"
+prim__getThreadId : PrimIO Int
 
 ||| Set the data stored in a thread's parameter to the given value.
 ||| Currently only supported under the scheme backends.
@@ -27,6 +29,11 @@ setThreadData val = primIO (prim__setThreadData val)
 export
 getThreadData : HasIO io => (a : Type) -> io a
 getThreadData a = primIO (prim__getThreadData a)
+
+||| Get the thread id of the current thread (chez backend).
+export
+getThreadId : HasIO io => io Int
+getThreadId = primIO prim__getThreadId
 
 
 -- Mutexes
@@ -72,19 +79,15 @@ data Condition : Type where [external]
 %foreign "scheme,racket:blodwen-make-cv"
          "scheme,chez:blodwen-make-condition"
 prim__makeCondition : PrimIO Condition
-
 %foreign "scheme,racket:blodwen-cv-wait"
          "scheme,chez:blodwen-condition-wait"
 prim__conditionWait : Condition -> Mutex -> PrimIO ()
-
 %foreign "scheme,chez:blodwen-condition-wait-timeout"
 --         "scheme,racket:blodwen-cv-wait-timeout"
 prim__conditionWaitTimeout : Condition -> Mutex -> Int -> PrimIO ()
-
 %foreign "scheme,racket:blodwen-cv-signal"
          "scheme,chez:blodwen-condition-signal"
 prim__conditionSignal : Condition -> PrimIO ()
-
 %foreign "scheme,racket:blodwen-cv-broadcast"
          "scheme,chez:blodwen-condition-broadcast"
 prim__conditionBroadcast : Condition -> PrimIO ()
@@ -187,6 +190,10 @@ data Channel : Type -> Type where [external]
 prim__makeChannel : PrimIO (Channel a)
 %foreign "scheme:blodwen-channel-get"
 prim__channelGet : Channel a -> PrimIO a
+%foreign "scheme,chez:blodwen-channel-get-non-blocking"
+prim__channelGetNonBlocking : Channel a -> PrimIO (Maybe a)
+%foreign "scheme,chez:blodwen-channel-get-with-timeout"
+prim__channelGetWithTimeout : Channel a -> Int -> PrimIO (Maybe a)
 %foreign "scheme:blodwen-channel-put"
 prim__channelPut : Channel a -> a -> PrimIO ()
 
@@ -208,6 +215,23 @@ export
 channelGet : HasIO io => (chan : Channel a) -> io a
 channelGet chan = primIO (prim__channelGet chan)
 
+||| Non-blocking version of channelGet (chez backend).
+|||
+||| @ chan the channel to receive on
+partial
+export
+channelGetNonBlocking : HasIO io => (chan : Channel a) -> io (Maybe a)
+channelGetNonBlocking chan = primIO (prim__channelGetNonBlocking chan)
+
+||| Timeout version of channelGet (chez backend).
+|||
+||| @ chan the channel to receive on
+||| @ milliseconds how many milliseconds to wait until timeout
+partial
+export
+channelGetWithTimeout : HasIO io => (chan : Channel a) -> (milliseconds : Nat) -> io (Maybe a)
+channelGetWithTimeout chan milliseconds = primIO (prim__channelGetWithTimeout chan (cast milliseconds))
+
 ||| Puts a value on the given channel.
 |||
 ||| @ chan the `Channel` to send the value over
@@ -215,4 +239,3 @@ channelGet chan = primIO (prim__channelGet chan)
 export
 channelPut : HasIO io => (chan : Channel a) -> (val : a) -> io ()
 channelPut chan val = primIO (prim__channelPut chan val)
-

@@ -122,7 +122,7 @@ export
 fill : Int -> Doc ann -> Doc ann
 fill n doc = width doc (\w => spaces $ n - w)
 
-infixr 6 <++>
+export infixr 6 <++>
 ||| Concatenates two documents with a space in between.
 export
 (<++>) : Doc ann -> Doc ann -> Doc ann
@@ -348,7 +348,7 @@ export
 Functor Doc where
   map = reAnnotate
 
-||| Overloaded converison to `Doc`.
+||| Overloaded conversion to `Doc`.
 public export
 interface Pretty a where
   pretty : a -> Doc ann
@@ -472,7 +472,7 @@ fuse Shallow (Column f) = Column f
 fuse depth (Column f) = Column (\x => fuse depth $ f x)
 fuse Shallow (WithPageWidth f) = WithPageWidth f
 fuse depth (WithPageWidth f) = WithPageWidth (\x => fuse depth $ f x)
--- fuse Shallow (Nesting f) = Nesting f
+fuse Shallow (Nesting f) = Nesting f
 fuse depth (Nesting f) = Nesting (\x => fuse depth $ f x)
 fuse depth x = x
 

@@ -1,13 +1,14 @@
 module Data.List.Quantifiers
 
 import Data.DPair
-
+import Data.Fin
+import Data.List
 import Data.List.Elem
 
 %default total
 
 ------------------------------------------------------------------------
--- Types and basic properties
+-- Quantifier types
 
 namespace Any
 
@@ -21,15 +22,24 @@ namespace Any
     ||| A proof that the satisfying element is in the tail of the `List`
     There : {0 xs : List a} -> Any p xs -> Any p (x :: xs)
 
-  export
-  Uninhabited (Any p Nil) where
-    uninhabited (Here _) impossible
-    uninhabited (There _) impossible
+namespace All
+
+  ||| A proof that all elements of a list satisfy a property. It is a list of
+  ||| proofs, corresponding element-wise to the `List`.
+  public export
+  data All : (0 p : a -> Type) -> List a -> Type where
+    Nil  : All p Nil
+    (::) : {0 xs : List a} -> p x -> All p xs -> All p (x :: xs)
+
+------------------------------------------------------------------------
+-- Basic properties
+
+namespace Any
 
   export
-  {0 p : a -> Type} -> Uninhabited (p x) => Uninhabited (Any p xs) => Uninhabited (Any p $ x::xs) where
-    uninhabited (Here y) = uninhabited y
-    uninhabited (There y) = uninhabited y
+  All (Uninhabited . p) xs => Uninhabited (Any p xs) where
+    uninhabited @{s::ss} (Here y)  = uninhabited y
+    uninhabited @{s::ss} (There y) = uninhabited y
 
   ||| Modify the property given a pointwise function
   export
@@ -56,19 +66,49 @@ namespace Any
           There pxs => ctra' pxs
 
   ||| Forget the membership proof
+  public export
+  toDPair : {xs : List a} -> Any p xs -> DPair a p
+  toDPair (Here prf) = (_ ** prf)
+  toDPair (There p)  = toDPair p
+
+  ||| Forget the membership proof
   export
   toExists : Any p xs -> Exists p
   toExists (Here prf) = Evidence _ prf
   toExists (There prf) = toExists prf
 
-namespace All
-
-  ||| A proof that all elements of a list satisfy a property. It is a list of
-  ||| proofs, corresponding element-wise to the `List`.
   public export
-  data All : (0 p : a -> Type) -> List a -> Type where
-    Nil  : All p Nil
-    (::) : {0 xs : List a} -> p x -> All p xs -> All p (x :: xs)
+  anyToFin : Any p xs -> Fin $ length xs
+  anyToFin (Here _)      = FZ
+  anyToFin (There later) = FS (anyToFin later)
+
+  export
+  anyToFinCorrect : (witness : Any p xs) -> p $ index' xs $ anyToFin witness
+  anyToFinCorrect (Here prf) = prf
+  anyToFinCorrect (There later) = anyToFinCorrect later
+
+  public export
+  anyToFinV : Any p xs -> (idx : Fin $ length xs ** p $ index' xs idx)
+  anyToFinV $ Here x  = (FZ ** x)
+  anyToFinV $ There x = let (idx ** v) = anyToFinV x in (FS idx ** v)
+
+  public export
+  pushOut : Functor p => Any (p . q) xs -> p $ Any q xs
+  pushOut @{fp} (Here v)  = map @{fp} Here v
+  pushOut @{fp} (There n) = map @{fp} There $ pushOut n
+
+  export
+  All (Show . p) xs => Show (Any p xs) where
+    showPrec d @{s::ss} (Here x)  = showCon d "Here"  $ showArg x
+    showPrec d @{s::ss} (There x) = showCon d "There" $ showArg x
+
+  export
+  All (Eq . p) xs => Eq (Any p xs) where
+    (==) @{s::ss} (Here x)  (Here y)  = x == y
+    (==) @{s::ss} (There x) (There y) = x == y
+    (==) _ _ = False
+
+namespace All
 
   Either (Uninhabited $ p x) (Uninhabited $ All p xs) => Uninhabited (All p $ x::xs) where
     uninhabited @{Left  _} (px::pxs) = uninhabited px
@@ -82,10 +122,12 @@ namespace All
 
   ||| Modify the property given a pointwise interface function
   public export
-  imapProperty : (0 i : Type -> Type)
-              -> (f : {0 a : Type} -> i a => p a -> q a)
-              -> {0 types : List Type}
-              -> All i types => All p types -> All q types
+  imapProperty : {0 a : Type}
+              -> {0 p,q : a -> Type}
+              -> (0 i : a -> Type)
+              -> (f : {0 x : a} -> i x => p x -> q x)
+              -> {0 as : List a}
+              -> All i as => All p as -> All q as
   imapProperty i f @{[]} [] = []
   imapProperty i f @{ix :: ixs} (x :: xs) = f @{ix} x :: imapProperty i f @{ixs} xs
 
@@ -119,18 +161,126 @@ namespace All
     = f px qx :: zipPropertyWith f pxs qxs
 
   export
-  All Show (map p xs) => Show (All p xs) where
+  All (Show . p) xs => Show (All p xs) where
     show pxs = "[" ++ show' "" pxs ++ "]"
       where
-        show' : String -> All Show (map p xs') => All p xs' -> String
+        show' : String -> All (Show . p) xs' => All p xs' -> String
         show' acc @{[]} [] = acc
         show' acc @{[_]} [px] = acc ++ show px
         show' acc @{_ :: _} (px :: pxs) = show' (acc ++ show px ++ ", ") pxs
+
+  export
+  All (Eq . p) xs => Eq (All p xs) where
+    (==)           [] []             = True
+    (==) @{_ :: _} (h1::t1) (h2::t2) = h1 == h2 && t1 == t2
+
+  %hint
+  allEq : All (Ord . p) xs => All (Eq . p) xs
+  allEq @{[]}     = []
+  allEq @{_ :: _} = %search :: allEq
+
+  export
+  All (Ord . p) xs => Ord (All p xs) where
+    compare            [] []            = EQ
+    compare @{_ :: _} (h1::t1) (h2::t2) = case compare h1 h2 of
+      EQ => compare t1 t2
+      o  => o
+
+  export
+  All (Semigroup . p) xs => Semigroup (All p xs) where
+    (<+>)           [] [] = []
+    (<+>) @{_ :: _} (h1::t1) (h2::t2) = (h1 <+> h2) :: (t1 <+> t2)
+
+  %hint
+  allSemigroup : All (Monoid . p) xs => All (Semigroup . p) xs
+  allSemigroup @{[]}     = []
+  allSemigroup @{_ :: _} = %search :: allSemigroup
+
+  export
+  All (Monoid . p) xs => Monoid (All p xs) where
+    neutral @{[]}   = []
+    neutral @{_::_} = neutral :: neutral
 
   ||| A heterogeneous list of arbitrary types
   public export
   HList : List Type -> Type
   HList = All id
+
+  ||| Concatenate lists of proofs.
+  public export
+  (++) : All p xs -> All p ys -> All p (xs ++ ys)
+  [] ++ pys = pys
+  (px :: pxs) ++ pys = px :: (pxs ++ pys)
+
+  ||| Take the first element.
+  public export
+  head : All p (x :: xs) -> p x
+  head (y :: _) = y
+
+  ||| Take all but the first element.
+  public export
+  tail : All p (x :: xs) -> All p xs
+  tail (_ :: ys) = ys
+
+  export
+  splitAt : (xs : List a) -> All p (xs ++ ys) -> (All p xs, All p ys)
+  splitAt [] pxs = ([], pxs)
+  splitAt (_ :: xs) (px :: pxs) = mapFst (px ::) (splitAt xs pxs)
+
+  export
+  take : (xs : List a) -> All p (xs ++ ys) -> All p xs
+  take xs pxs = fst (splitAt xs pxs)
+
+  export
+  drop : (xs : List a) -> All p (xs ++ ys) -> All p ys
+  drop xs pxs = snd (splitAt xs pxs)
+
+  export
+  drop' : (l : Nat) -> All p xs -> All p (drop l xs)
+  drop' Z     as      = as
+  drop' (S k) []      = []
+  drop' (S k) (a::as) = drop' k as
+
+  ||| Push in the property from the list level with element level
+  public export
+  pushIn : (xs : List a) -> (0 _ : All p xs) -> List $ Subset a p
+  pushIn []      []      = []
+  pushIn (x::xs) (p::ps) = Element x p :: pushIn xs ps
+
+  ||| Pull the elementwise property out to the list level
+  public export
+  pullOut : (xs : List $ Subset a p) -> Subset (List a) (All p)
+  pullOut [] = Element [] []
+  pullOut (Element x p :: xs) = let Element ss ps = pullOut xs in Element (x::ss) (p::ps)
+
+  export
+  pushInOutInverse : (xs : List a) -> (0 prf : All p xs) -> pullOut (pushIn xs prf) = Element xs prf
+  pushInOutInverse [] [] = Refl
+  pushInOutInverse (x::xs) (p::ps) = rewrite pushInOutInverse xs ps in Refl
+
+  export
+  pushOutInInverse : (xs : List $ Subset a p) -> uncurry All.pushIn (pullOut xs) = xs
+  pushOutInInverse [] = Refl
+  pushOutInInverse (Element x p :: xs) with (pushOutInInverse xs)
+    pushOutInInverse (Element x p :: xs) | subprf with (pullOut xs)
+      pushOutInInverse (Element x p :: xs) | subprf | Element ss ps = rewrite subprf in Refl
+
+  ||| Given a proof of membership for some element, extract the property proof for it
+  public export
+  indexAll : Elem x xs -> All p xs -> p x
+  indexAll  Here     (p::_  ) = p
+  indexAll (There e) ( _::ps) = indexAll e ps
+
+  ||| Given an index of an element, extract the property proof for it
+  public export
+  index : (idx : Fin $ length xs) -> All p xs -> p (index' xs idx)
+  index FZ     (p::ps) = p
+  index (FS i) (p::ps) = index i ps
+
+  public export
+  pushOut : Applicative p => All (p . q) xs -> p $ All q xs
+  pushOut []      = pure []
+  pushOut (x::xs) = [| x :: pushOut xs |]
 
 ------------------------------------------------------------------------
 -- Relationship between all and any
@@ -156,37 +306,15 @@ allNegAny [] p = absurd p
 allNegAny (np :: npxs) (Here p) = absurd (np p)
 allNegAny (np :: npxs) (There p) = allNegAny npxs p
 
-||| Given a proof of membership for some element, extract the property proof for it
 public export
-indexAll : Elem x xs -> All p xs -> p x
-indexAll  Here     (p::_  ) = p
-indexAll (There e) ( _::ps) = indexAll e ps
-
---- Relations between listwise `All` and elementwise `Subset` ---
-
-||| Push in the property from the list level with element level
-public export
-pushIn : (xs : List a) -> (0 _ : All p xs) -> List $ Subset a p
-pushIn []      []      = []
-pushIn (x::xs) (p::ps) = Element x p :: pushIn xs ps
-
-||| Pull the elementwise property out to the list level
-public export
-pullOut : (xs : List $ Subset a p) -> Subset (List a) (All p)
-pullOut [] = Element [] []
-pullOut (Element x p :: xs) = let Element ss ps = pullOut xs in Element (x::ss) (p::ps)
+allAnies : All p xs -> List (Any p xs)
+allAnies [] = []
+allAnies (x::xs) = Here x :: map There (allAnies xs)
 
 export
-pushInOutInverse : (xs : List a) -> (0 prf : All p xs) -> pullOut (pushIn xs prf) = Element xs prf
-pushInOutInverse [] [] = Refl
-pushInOutInverse (x::xs) (p::ps) = rewrite pushInOutInverse xs ps in Refl
-
-export
-pushOutInInverse : (xs : List $ Subset a p) -> uncurry Quantifiers.pushIn (pullOut xs) = xs
-pushOutInInverse [] = Refl
-pushOutInInverse (Element x p :: xs) with (pushOutInInverse xs)
-  pushOutInInverse (Element x p :: xs) | subprf with (pullOut xs)
-    pushOutInInverse (Element x p :: xs) | subprf | Element ss ps = rewrite subprf in Refl
+altAll : Alternative p => All (p . q) xs -> p $ Any q xs
+altAll []      = empty
+altAll (a::as) = Here <$> a <|> There <$> altAll as
 
 ------------------------------------------------------------------------
 -- Partitioning lists according to All

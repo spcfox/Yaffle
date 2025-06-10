@@ -5,6 +5,7 @@ import Data.Morphisms
 
 public export
 interface Category (0 cat : obj -> obj -> Type) | cat where
+  constructor MkCategory
   id  : cat a a
   (.) : cat b c -> cat a b -> cat a c
 
@@ -20,7 +21,7 @@ Monad m => Category (Kleislimorphism m) where
   id                        = Kleisli (pure . id)
   (Kleisli f) . (Kleisli g) = Kleisli $ \a => g a >>= f
 
-infixr 1 >>>
+export infixr 1 >>>
 
 public export
 (>>>) : Category cat => cat a b -> cat b c -> cat a c

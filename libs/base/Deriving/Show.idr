@@ -245,6 +245,8 @@ namespace Show
                   let MW = rig
                     | _ => throwError (NotAnUnconstrainedValue rig)
 
+                  -- try to reduce the type before analysis
+                  ty <- try (check {expected=Type} ty >>= \x => quote x) (pure ty)
                   res <- withError (WhenCheckingArg (mapTTImp cleanup ty)) $ do
                            typeView f (paraz <>> []) ty
                   pure $ Just (showPrecFun fc mutualWith res v)
@@ -262,7 +264,7 @@ namespace Show
             ])
 
     -- Generate the type of the show function
-    let ty = MkTy fc fc showName $ withParams fc (paramConstraints ns) params
+    let ty = MkTy fc (NoFC showName) $ withParams fc (paramConstraints ns) params
            $ `(Prec -> ~(t) -> String)
     logMsg "derive.show.clauses" 1 $
       joinBy "\n" ("" :: ("  " ++ show (mapITy cleanup ty))
@@ -270,7 +272,7 @@ namespace Show
 
     -- Define the instance
     check $ ILocal fc
-      [ IClaim fc MW vis [Totality treq] ty
+      [ IClaim (MkFCVal fc (MkIClaimData MW vis [Totality treq] ty))
       , IDef fc showName cls
       ] `(fromShowPrec ~(IVar fc showName))
 

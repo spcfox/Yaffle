@@ -6,6 +6,18 @@ public export
 data Singleton : a -> Type where
      Val : (x : a) -> Singleton x
 
+public export %inline
+reindex : (0 _ : x === y) -> Singleton x -> Singleton y
+reindex Refl x = x
+
+public export %inline
+unVal : Singleton {a} x -> a
+unVal $ Val x = x
+
+public export %inline
+(.unVal) : Singleton {a} x -> a
+(.unVal) = unVal
+
 -- pure and <*> implementations for idiom bracket notation
 
 public export

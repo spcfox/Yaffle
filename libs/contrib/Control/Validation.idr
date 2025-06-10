@@ -96,7 +96,7 @@ export
 fail : Applicative m => String -> ValidatorT m a b
 fail s = MkValidator $ \_ => left s
 
-infixl 2 >>>
+export infixl 2 >>>
 
 ||| Compose two validators so that the second validates the output of the first.
 export
@@ -202,7 +202,7 @@ ltNat bound = decide
     (\n => show n <+> " is not strictly lower than " <+> show bound)
     (\n => isLTE (S n) bound)
 
-||| Verify that a Nat is strictly greate than a certain bound.
+||| Verify that a Nat is strictly greater than a certain bound.
 export
 gtNat : Monad m => (bound : Nat) -> PropValidator m Nat (flip GT bound)
 gtNat bound = decide

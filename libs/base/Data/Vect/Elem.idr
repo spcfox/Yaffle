@@ -1,5 +1,6 @@
 module Data.Vect.Elem
 
+import Data.Singleton
 import Data.Vect
 import Decidable.Equality
 
@@ -16,12 +17,23 @@ data Elem : a -> Vect k a -> Type where
   There : (later : Elem x xs) -> Elem x (y::xs)
 
 export
-Uninhabited (Here = There e) where
+Uninhabited (Here {x} {xs} = There {x = x'} {y} {xs = xs'} e) where
   uninhabited Refl impossible
 
 export
-Uninhabited (There e = Here) where
+Uninhabited (There {x} {y} {xs} e = Here {x = x'} {xs = xs'}) where
   uninhabited Refl impossible
+
+export
+Injective (There {x} {y} {xs}) where
+  injective Refl = Refl
+
+export
+DecEq (Elem x xs) where
+  decEq Here Here = Yes Refl
+  decEq (There this) (There that) = decEqCong $ decEq this that
+  decEq Here (There later) = No absurd
+  decEq (There later) Here = No absurd
 
 export
 Uninhabited (Elem x []) where
@@ -48,6 +60,18 @@ isElem x (y::xs) with (decEq x y)
     isElem x (y::xs) | (No xneqy) | (Yes xinxs) = Yes (There xinxs)
     isElem x (y::xs) | (No xneqy) | (No xninxs) = No (neitherHereNorThere xneqy xninxs)
 
+||| Get the element at the given position.
+public export
+get : (xs : Vect n a) -> (p : Elem x xs) -> a
+get (x :: _) Here = x
+get (_ :: xs) (There p) = get xs p
+
+||| Get the element at the given position, with proof that it is the desired element.
+public export
+lookup : (xs : Vect n a) -> (p : Elem x xs) -> Singleton x
+lookup (x :: _) Here = Val x
+lookup (_ :: xs) (There p) = lookup xs p
+
 public export
 replaceElem : (xs : Vect k t) -> Elem x xs -> (y : t) -> (ys : Vect k t ** Elem y ys)
 replaceElem (x::xs) Here y = (y :: xs ** Here)
@@ -70,9 +94,9 @@ mapElem (There e) = There (mapElem e)
 ||| @xs The vector to be removed from
 ||| @p A proof that the element to be removed is in the vector
 public export
-dropElem : {k : _} -> (xs : Vect (S k) t) -> Elem x xs -> Vect k t
-dropElem           (x::ys)  Here         = ys
-dropElem {k = S k} (x::ys) (There later) = x :: dropElem ys later
+dropElem : (xs : Vect (S k) t) -> Elem x xs -> Vect k t
+dropElem (x::ys)         Here         = ys
+dropElem (x::ys@(_::_)) (There later) = x :: dropElem ys later
 
 ||| Erase the indices, returning the bounded numeric position of the element
 public export

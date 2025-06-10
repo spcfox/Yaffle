@@ -78,7 +78,7 @@ namespace Compat
 
 ||| Merge the tokens into a single source file.
 reduce : List (WithBounds Token) -> List String -> String
-reduce [] acc = fastConcat (reverse acc)
+reduce [] acc = concat (reverse acc)
 reduce (MkBounded (Any x) _ _ :: rest) acc =
   -- newline will always be tokenized as a single token
   if x == "\n"
@@ -223,7 +223,7 @@ embedCode (MkLitStyle ((s,e)::delims) _            _) str = unlines [s,str,e]
 embedCode (MkLitStyle Nil             (m::markers) _) str = unwords [m, str]
 embedCode (MkLitStyle _               _            _) str = str
 
-||| Synonm for `embedCode`
+||| Synonym for `embedCode`
 export
 relit : (specification : LiterateStyle)
      -> (code : String)

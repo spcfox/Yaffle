@@ -57,6 +57,7 @@ export
 getSockPort : HasIO io => Socket -> io Port
 getSockPort sock = primIO $ prim__idrnet_sockaddr_port $ descriptor sock
 
+
 ||| Retrieves a socket address from a sockaddr pointer
 export
 getSockAddr : HasIO io => SockaddrPtr -> io SocketAddress

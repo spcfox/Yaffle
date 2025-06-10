@@ -19,13 +19,13 @@ etaCons (x :: xs) = Refl
 ||| Inhabitants of `Fin n` witness `NonZero n`
 export
 finNonZero : Fin n -> NonZero n
-finNonZero  FZ    = SIsNonZero
-finNonZero (FS i) = SIsNonZero
+finNonZero  FZ    = ItIsSucc
+finNonZero (FS i) = ItIsSucc
 
 ||| Inhabitants of `Fin n` witness runtime-irrelevant vectors of length `n` aren't empty
 export
 finNonEmpty : (0 xs : Vect n a) -> NonZero n -> NonEmpty xs
-finNonEmpty xs SIsNonZero = replace {p = NonEmpty} (etaCons xs) IsNonEmpty
+finNonEmpty xs ItIsSucc = replace {p = NonEmpty} (etaCons xs) IsNonEmpty
 
 ||| Cast an index into a runtime-irrelevant `Vect` into the position
 ||| of the corresponding element
@@ -35,7 +35,7 @@ finToElem  {n      }       xs  i with (finNonEmpty xs $ finNonZero i)
  finToElem {n = S n} (x :: xs)  FZ    | IsNonEmpty = Here
  finToElem {n = S n} (x :: xs) (FS i) | IsNonEmpty = There (finToElem xs i)
 
-||| Analogus to `indexNaturality`, but morhisms can (irrelevantly) know the context
+||| Analogous to `indexNaturality`, but morphisms can (irrelevantly) know the context
 export
 indexNaturalityWithElem : (i : Fin n) -> (xs : Vect n a) -> (f : (x : a) -> (0 pos : x `Elem` xs) -> b)
   -> index i (mapWithElem xs f) = f (index i xs) (finToElem xs i)

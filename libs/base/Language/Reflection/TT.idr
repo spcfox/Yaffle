@@ -68,6 +68,41 @@ public export
 emptyFC : FC
 emptyFC = EmptyFC
 
+------------------------------------------------------------------------
+||| A wrapper for a value with a file context.
+public export
+record WithFC (ty : Type) where
+  constructor MkFCVal
+  fc : FC
+  value : ty
+
+||| Smart constructor for WithFC that uses EmptyFC as location
+%inline export
+NoFC : a -> WithFC a
+NoFC = MkFCVal EmptyFC
+
+export
+Functor WithFC where
+  map f = { value $= f}
+
+export
+Foldable WithFC where
+  foldr f i v = f v.value i
+
+export
+Traversable WithFC where
+  traverse f (MkFCVal fc val) = map (MkFCVal fc) (f val)
+
+||| Locations are not taken into account when comparing reflected trees
+export
+Eq a => Eq (WithFC a) where
+  x == y = x.value == y.value
+
+||| Locations are not taken into account when comparing reflected trees
+export
+Ord a => Ord (WithFC a) where
+  compare x y = compare x.value y.value
+
 public export
 data NameType : Type where
      Bound   : NameType
@@ -170,6 +205,12 @@ data Name = NS Namespace Name -- name in a namespace
 
 %name Name nm
 
+%nameLit fromName
+
+public export
+fromName : Name -> Name
+fromName nm = nm
+
 export
 dropNS : Name -> Name
 dropNS (NS _ n) = dropNS n
@@ -228,6 +269,13 @@ showCount MW s = s
 public export
 data PiInfo t = ImplicitArg | ExplicitArg | AutoImplicit | DefImplicit t
 %name PiInfo pinfo
+
+public export
+Functor PiInfo where
+  map f ImplicitArg     = ImplicitArg
+  map f ExplicitArg     = ExplicitArg
+  map f AutoImplicit    = AutoImplicit
+  map f $ DefImplicit x = DefImplicit $ f x
 
 export
 showPiInfo : Show a => {default True wrapExplicit : Bool} -> PiInfo a -> String -> String
@@ -381,6 +429,75 @@ Eq Constant where
   PrT t       == PrT t'      = t == t'
   WorldVal    == WorldVal    = True
   _ == _ = False
+
+public export
+Ord Namespace where
+    compare (MkNS ms) (MkNS ns) = compare ms ns
+
+public export
+Ord Count where
+  compare M0 M0 = EQ
+  compare M0 _  = LT
+  compare _  M0 = GT
+  compare M1 M1 = EQ
+  compare MW MW = EQ
+  compare MW M1 = GT
+  compare M1 MW = LT
+
+usernameTag : UserName -> Int
+usernameTag (Basic _)  = 0
+usernameTag (Field _)  = 1
+usernameTag Underscore = 2
+
+public export
+Ord UserName where
+  compare (Basic x) (Basic y)   = compare x y
+  compare (Field x) (Field y)   = compare x y
+  compare Underscore Underscore = EQ
+  compare x y                   = compare (usernameTag x) (usernameTag y)
+
+nameTag : Name -> Int
+nameTag (NS _ _)        = 0
+nameTag (UN _)          = 1
+nameTag (MN _ _)        = 2
+nameTag (DN _ _)        = 3
+nameTag (Nested _ _)    = 4
+nameTag (CaseBlock _ _) = 5
+nameTag (WithBlock _ _) = 6
+
+public export
+Ord Name where
+    compare (NS x y) (NS x' y')
+        = case compare y y' of -- Compare base name first (more likely to differ)
+               EQ => compare x x'
+               -- Because of the terrible way Idris 1 compiles 'case', this
+               -- is actually faster than just having 't => t'...
+               GT => GT
+               LT => LT
+    compare (UN x) (UN y) = compare x y
+    compare (MN x y) (MN x' y')
+        = case compare y y' of
+               EQ => compare x x'
+               GT => GT
+               LT => LT
+    compare (DN _ n) (DN _ n') = compare n n'
+    compare (Nested x y) (Nested x' y')
+        = case compare y y' of
+               EQ => compare x x'
+               GT => GT
+               LT => LT
+    compare (CaseBlock x y) (CaseBlock x' y')
+        = case compare y y' of
+               EQ => compare x x'
+               GT => GT
+               LT => LT
+    compare (WithBlock x y) (WithBlock x' y')
+        = case compare y y' of
+               EQ => compare x x'
+               GT => GT
+               LT => LT
+
+    compare x y = compare (nameTag x) (nameTag y)
 
 export Injective MkNS where injective Refl = Refl
 

@@ -6,6 +6,10 @@ import Prelude.Ops
 
 %default total
 
+
+||| `Not x` is an alias for `x -> Void`, indicating that any term of type `x`
+||| leads to a contradiction. It can be used in conjunction with `void` or
+||| `absurd`.
 public export
 Not : Type -> Type
 Not x = x -> Void
@@ -18,7 +22,7 @@ Not x = x -> Void
 ||| @ a the type to assign
 ||| @ x the element to get the type
 public export %inline
-the : (0 a : Type) -> (x : a) -> a
+the : (0 a : Type) -> (1 x : a) -> a
 the _ x = x
 
 ||| Identity function.
@@ -37,14 +41,14 @@ const : a -> b -> a
 const x = \value => x
 
 ||| Function composition.
-public export %inline
+public export %inline %tcinline
 (.) : (b -> c) -> (a -> b) -> a -> c
 (.) f g = \x => f (g x)
 
 ||| Composition of a two-argument function with a single-argument one.
 ||| `(.:)` is like `(.)` but the second argument and the result are two-argument functions.
 ||| This operator is also known as "blackbird operator".
-public export %inline
+public export %inline %tcinline
 (.:) : (c -> d) -> (a -> b -> c) -> a -> b -> d
 (.:) = (.) . (.)
 
@@ -61,22 +65,22 @@ public export %inline
 ||| ```idris example
 ||| sortBy (compare `on` fst).
 ||| ```
-public export
+public export %tcinline
 on : (b -> b -> c) -> (a -> b) -> a -> a -> c
 on f g = \x, y => g x `f` g y
 
-infixl 0 `on`
+export infixl 0 `on`
 
 ||| Takes in the first two arguments in reverse order.
 ||| @ f the function to flip
-public export
+public export %tcinline
 flip : (f : a -> b -> c) -> b -> a -> c
-flip f x y = f y x
+flip f = \x, y => f y x
 
 ||| Function application.
-public export
+public export %tcinline
 apply : (a -> b) -> a -> b
-apply f a = f a
+apply f = \a => f a
 
 public export
 curry : ((a, b) -> c) -> a -> b -> c
@@ -93,24 +97,63 @@ public export
 ($) : forall a, b . ((x : a) -> b x) -> (x : a) -> b x
 ($) f a = f a
 
+||| Pipeline style function application, useful for chaining
+||| functions into a series of transformations, reading top
+||| to bottom.
+|||
+||| ```idris example
+||| [[1], [2], [3]] |> join |> map (* 2)
+||| ```
+public export
+(|>) : a -> (a -> b) -> b
+a |> f = f a
+
+||| Backwards pipeline style function application, similar to $.
+|||
+||| ```idris example
+||| unpack <| "hello" ++ "world"
+||| ```
+public export
+(<|) : (a -> b) -> a -> b
+f <| a = f a
+
 -------------------
 -- PROOF HELPERS --
 -------------------
 
 ||| Equality is a congruence.
 public export
-cong : (0 f : t -> u) -> (p : a = b) -> f a = f b
+cong : (0 f : t -> u) -> (0 p : a = b) -> f a = f b
 cong f Refl = Refl
 
 ||| Two-holed congruence.
 export
 -- These are natural in equational reasoning.
-cong2 : (0 f : t1 -> t2 -> u) -> (p1 : a = b) -> (p2 : c = d) -> f a c = f b d
+cong2 : (0 f : t1 -> t2 -> u) -> (0 p1 : a = b) -> (0 p2 : c = d) -> f a c = f b d
 cong2 f Refl Refl = Refl
+
+||| Dependent version of `cong`.
+public export
+depCong : {0 p : a -> Type} ->
+          (0 f : (x : a) -> p x) ->
+          {0 x1, x2 : a} ->
+          (prf : x1 = x2) ->
+          f x1 = f x2
+depCong f Refl = Refl
+
+||| Dependent version of `cong2`.
+public export
+depCong2 : {0 p : a -> Type} ->
+           {0 q : (x : a) -> (y : p x) -> Type} ->
+           (0 f : (x : a) -> (y : p x) -> q x y) ->
+           {0 x1, x2 : a} -> (prfX : x1 = x2) ->
+           {0 y1 : p x1} -> {y2 : p x2} ->
+           (prfY : y1 = y2) -> f x1 y1 = f x2 y2
+depCong2 f Refl Refl = Refl
 
 ||| Irrelevant equalities can always be made relevant
 export
-irrelevantEq : (0 _ : a === b) -> a === b
+irrelevantEq : (0 _ : a ~=~ b) -> a ~=~ b
 irrelevantEq Refl = Refl
 
 --------------
