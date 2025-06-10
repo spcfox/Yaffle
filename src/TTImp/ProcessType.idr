@@ -39,6 +39,8 @@ throwIfHasFlag fc ndef fl msg
 processFnOpt : {auto c : Ref Ctxt Defs} ->
                FC -> Bool -> -- ^ top level name?
                Name -> FnOpt -> Core ()
+processFnOpt fc _ ndef Unsafe
+    = pure () -- TODO: Not implemented
 processFnOpt fc _ ndef Inline
     = do throwIfHasFlag fc ndef NoInline "%noinline and %inline are mutually exclusive"
          setFlag fc ndef Inline

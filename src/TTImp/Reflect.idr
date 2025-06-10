@@ -274,6 +274,7 @@ mutual
   Reify FnOpt where
     reify defs val@(VDCon _ n _ _ args)
         = case (dropAllNS !(full (gamma defs) n), !(spine args)) of
+               (UN (Basic "Unsafe"), _) => pure Unsafe
                (UN (Basic "Inline"), _) => pure Inline
                (UN (Basic "NoInline"), _) => pure NoInline
                (UN (Basic "Deprecate"), _) => pure Deprecate
@@ -651,6 +652,7 @@ mutual
 
   export
   Reflect FnOpt where
+    reflect fc defs lhs env Unsafe = getCon fc defs (reflectionttimp "Unsafe")
     reflect fc defs lhs env Inline = getCon fc defs (reflectionttimp "Inline")
     reflect fc defs lhs env NoInline = getCon fc defs (reflectionttimp "NoInline")
     reflect fc defs lhs env Deprecate = getCon fc defs (reflectionttimp "Deprecate")
