@@ -1,5 +1,5 @@
 package base
-version = 0.6.0
+version = 0.7.0
 
 opts = "--ignore-missing-ipkg -Wno-shadowing"
 
@@ -47,6 +47,8 @@ modules = Control.App,
           Data.Either,
           Data.Fin,
           Data.Fin.Order,
+          Data.Fin.Properties,
+          Data.Fin.Split,
           Data.Fuel,
           Data.Fun,
           Data.IOArray,
@@ -59,6 +61,7 @@ modules = Control.App,
           Data.SnocList.Operations,
           Data.List.Elem,
           Data.List.HasLength,
+          Data.List.Lazy,
           Data.List.Views,
           Data.List.Quantifiers,
           Data.List1,
@@ -105,6 +108,7 @@ modules = Control.App,
 
           Syntax.PreorderReasoning,
           Syntax.PreorderReasoning.Generic,
+          Syntax.WithProof,
 
           System,
           System.Clock,

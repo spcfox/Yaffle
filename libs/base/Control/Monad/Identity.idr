@@ -25,6 +25,15 @@ Monad Identity where
     (Id x) >>= k = k x
 
 public export
+Foldable Identity where
+  foldr f init (Id x) = f x init
+  foldl f init (Id x) = f init x
+  null _ = False
+  foldlM f init (Id x) = f init x
+  toList (Id x) = [x]
+  foldMap f (Id x) = f x
+
+public export
 Show a => Show (Identity a) where
   showPrec d (Id x) = showCon d "Id" $ showArg x
 
