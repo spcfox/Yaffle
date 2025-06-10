@@ -338,6 +338,7 @@ mutual
 
   export
   TTC FnOpt where
+    toBuf Unsafe = tag 16
     toBuf Inline = tag 0
     toBuf NoInline = tag 12
     toBuf TCInline = tag 11
@@ -371,6 +372,7 @@ mutual
                12 => pure NoInline
                14 => pure Deprecate
                15 => do cs <- fromBuf; pure (ForeignExport cs)
+               16 => pure Unsafe
                _ => corrupt "FnOpt"
 
   export

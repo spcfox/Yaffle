@@ -113,6 +113,7 @@ mutual
 
   export
   Functor FnOpt' where
+    map f Unsafe = Unsafe
     map f Inline = Inline
     map f NoInline = NoInline
     map f Deprecate = Deprecate

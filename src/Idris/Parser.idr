@@ -1056,6 +1056,9 @@ mutual
            pure $ IFnOpt (GlobalHint False)
     <|> do decoratedPragma fname "defaulthint"
            pure $ IFnOpt (GlobalHint True)
+    <|> do decoratedPragma fname "unsafe"
+           commit
+           pure $ IFnOpt Unsafe
     <|> do decoratedPragma fname "inline"
            commit
            pure $ IFnOpt Inline
@@ -1356,6 +1359,11 @@ directive fname indents
          n <- name
          atEnd indents
          pure (Unhide n)
+  <|> do decoratedPragma fname "foreign_impl"
+         n <- name
+         cs <- block (expr pdef fname)
+         atEnd indents
+         pure (ForeignImpl n cs)
 --   <|> do pragma "hide_export"
 --          n <- name
 --          atEnd indents
@@ -1376,6 +1384,10 @@ directive fname indents
          b <- onoff
          atEnd indents
          pure (PrefixRecordProjections b)
+  <|> do decoratedPragma fname "totality_depth"
+         lvl <- decorate fname Keyword $ intLit
+         atEnd indents
+         pure (TotalityDepth (fromInteger lvl))
   <|> do decoratedPragma fname "ambiguity_depth"
          lvl <- decorate fname Keyword $ intLit
          atEnd indents
@@ -1419,10 +1431,22 @@ directive fname indents
          n <- name
          atEnd indents
          pure (PrimDouble n)
+  <|> do decoratedPragma fname "TTImpLit"
+         n <- name
+         atEnd indents
+         pure (PrimTTImp n)
+  <|> do decoratedPragma fname "nameLit"
+         n <- name
+         atEnd indents
+         pure (PrimName n)
+  <|> do decoratedPragma fname "declsLit"
+         n <- name
+         atEnd indents
+         pure (PrimDecls n)
   <|> do decoratedPragma fname "name"
          n <- name
          ns <- sepBy1 (decoratedSymbol fname ",")
-                       (decoratedSimpleBinderName fname)
+                      (decoratedSimpleBinderName fname)
          atEnd indents
          pure (Names n (forget ns))
   <|> do decoratedPragma fname "start"
@@ -1788,9 +1812,18 @@ definition fname indents
     = do nd <- bounds (clause 0 Nothing fname indents)
          pure (PDef (boundToFC fname nd) [nd.val])
 
+operatorBindingKeyword : OriginDesc -> EmptyRule ()
+operatorBindingKeyword fname
+  =   (decoratedKeyword fname "autobind" >> pure ())
+  <|> (decoratedKeyword fname "typebind" >> pure ())
+  <|> pure ()
+
+
 fixDecl : OriginDesc -> IndentInfo -> Rule (List PDecl)
 fixDecl fname indents
-    = do b <- bounds (do fixity <- decorate fname Keyword $ fix
+    = do vis <- visibility fname
+         ignore $ operatorBindingKeyword fname
+         b <- bounds (do fixity <- decorate fname Keyword $ fix
                          commit
                          prec <- decorate fname Keyword $ intLit
                          ops <- sepBy1 (decoratedSymbol fname ",") iOperator

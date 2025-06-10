@@ -143,6 +143,7 @@ ImpRecord = ImpRecord' Name
 
 public export
 data FnOpt' : Type -> Type where
+     Unsafe : FnOpt' nm
      Inline : FnOpt' nm
      NoInline : FnOpt' nm
      ||| Mark a function as deprecated.
@@ -417,6 +418,7 @@ mutual
   export
   covering
   Show nm => Show (FnOpt' nm) where
+    show Unsafe = "%unsafe"
     show Inline = "%inline"
     show NoInline = "%noinline"
     show Deprecate = "%deprecate"

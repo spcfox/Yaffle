@@ -330,12 +330,16 @@ mutual
        LazyOn : Bool -> Directive
        UnboundImplicits : Bool -> Directive
        AmbigDepth : Nat -> Directive
+       TotalityDepth: Nat -> Directive
        PairNames : Name -> Name -> Name -> Directive
        RewriteName : Name -> Name -> Directive
        PrimInteger : Name -> Directive
        PrimString : Name -> Directive
        PrimChar : Name -> Directive
        PrimDouble : Name -> Directive
+       PrimTTImp : Name -> Directive
+       PrimName : Name -> Directive
+       PrimDecls : Name -> Directive
        CGAction : String -> String -> Directive
        Names : Name -> List String -> Directive
        StartExpr : PTerm' nm -> Directive
@@ -346,6 +350,8 @@ mutual
        AutoImplicitDepth : Nat -> Directive
        NFMetavarThreshold : Nat -> Directive
        SearchTimeout : Integer -> Directive
+       -- There is no nm on Directive
+       ForeignImpl : Name -> List PTerm -> Directive
 
   public export
   PField : Type
