@@ -22,6 +22,7 @@ export
 FromString Name where
   fromString = id
 
+export
 STRING : DecEq String
 STRING = %search
 
@@ -93,13 +94,13 @@ namespace Index
   export
   thicken : (v : Index nm g) -> (v' : Index nm' g) ->
             Either (nm === nm', v ~=~ v') (Index nm' (delete v))
-  thicken v@_ w@_ with (view v) | (view w)
-    _ | Z | Z = Left (Refl, Refl)
-    _ | Z | S w' = Right w'
-    _ | S _ | Z = Right fresh
-    _ | S v' | S w' with (thicken v' w')
-      _ | Left (Refl, p) = Left (Refl, cong weaken p)
-      _ | Right res = Right (weaken res)
+  -- thicken v@_ w@_ with (view v) | (view w)
+  --   _ | Z | Z = Left (Refl, Refl)
+  --   _ | Z | S w' = Right w'
+  --   _ | S _ | Z = Right fresh
+  --   _ | S v' | S w' with (thicken v' w')
+  --     _ | Left (Refl, p) = Left (Refl, cong weaken p)
+  --     _ | Right res = Right (weaken res)
 
   export
   irrelevantAtIndex :

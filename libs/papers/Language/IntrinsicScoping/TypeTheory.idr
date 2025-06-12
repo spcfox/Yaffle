@@ -116,7 +116,7 @@ namespace Infer
 -- Equality testing
 
 (forall g. Eq (t f g)) => Eq (Abs t f g) where
-  MkAbs x@_ b == MkAbs x' b' with (decEq x x')
+  MkAbs x@_ b == MkAbs x' b' with (decEq @{STRING} x x')
     _ | Yes Refl = b == b'
     _ | No _ = False
 

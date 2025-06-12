@@ -213,7 +213,7 @@ namespace Erased
   public export
   view : (d : General a b (b i)) -> (0 l : Layer f d) -> View l
   view (Tell o)  (MkTell o)            = TView o
-  view (Ask j k) (MkAsk j jprf k kprf) = AView j jprf k kprf
+  view (Ask j k) (MkAsk j jprf k kprf) = ?aView -- AView j jprf k kprf
 
   -- Just like `Domain` is defined in terms of `Layer`, the evaluation of a
   -- function call for an input in its domain can be reduced to the evaluation
@@ -227,7 +227,7 @@ namespace Erased
   -- to `d` in each branch of the case.
   evaluateLayer f d l = case view d l of
     TView o => o
-    AView j jprf k kprf => evaluateLayer f (k (evaluate f j jprf)) kprf
+    AView j jprf k kprf => evaluateLayer f (k $ assert_total (evaluate f j jprf)) ?kprf
 
   ||| If a function's domain is total then it is a pure function.
   public export

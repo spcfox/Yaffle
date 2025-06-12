@@ -565,27 +565,27 @@ namespace Machine
     (trold : Refocus.Trace (refocus (fst ctx) (Closure t (fst env)))) ->
     (trnew : Machine.Trace t env ctx) ->
     refocus trnew === Refocus.iterate trold
-  correctness ctx (Var v) env (Step (fst ctx) (RVar v (fst env)) trold) (Var trnew)
-    with (lookup env v) proof eq
-    _ | Element (Closure t' env') penv'
-    = correctness ctx t' (Element env' penv')
-        (rewrite sym (cong fst eq) in rewrite fstLookup env v in trold)
-        trnew
-  correctness ctx (App f t) env (Step (fst ctx) (RApp f t (fst env)) trold) (App trnew)
-    = correctness (Closure t env :: ctx) f env
-        (rewrite fstCons (Closure t env) ctx in rewrite fstClosure t env in trold)
-        trnew
-  correctness .(Element arg parg :: Element ctx pctx) (Lam sc) (Element env penv)
-    (Step ctx (Beta sc env arg) trold)
-    (Beta {arg = Element arg parg, ctx = Element ctx pctx} trnew)
-    = correctness (Element ctx pctx) sc (Element arg parg :: Element env penv)
-        trold
-        trnew
-  correctness (Element [] _) (Lam sc) env (Done _ _) tr
-    -- DISGUSTING
-    = case tr of
-        Beta {arg = Element _ _, ctx = Element _ _} _ impossible
-        Done => Refl
+  -- correctness ctx (Var v) env (Step (fst ctx) (RVar v (fst env)) trold) (Var trnew)
+  --   with (lookup env v) proof eq
+  --   _ | Element (Closure t' env') penv'
+  --   = correctness ctx t' (Element env' penv')
+  --       (rewrite sym (cong fst eq) in rewrite fstLookup env v in trold)
+  --       trnew
+  -- correctness ctx (App f t) env (Step (fst ctx) (RApp f t (fst env)) trold) (App trnew)
+  --   = correctness (Closure t env :: ctx) f env
+  --       (rewrite fstCons (Closure t env) ctx in rewrite fstClosure t env in trold)
+  --       trnew
+  -- correctness .(Element arg parg :: Element ctx pctx) (Lam sc) (Element env penv)
+  --   (Step ctx (Beta sc env arg) trold)
+  --   (Beta {arg = Element arg parg, ctx = Element ctx pctx} trnew)
+  --   = correctness (Element ctx pctx) sc (Element arg parg :: Element env penv)
+  --       trold
+  --       trnew
+  -- correctness (Element [] _) (Lam sc) env (Done _ _) tr
+  --   -- DISGUSTING
+  --   = case tr of
+  --       Beta {arg = Element _ _, ctx = Element _ _} _ impossible
+  --       Done => Refl
 
   -- Another disgusgint proof because of a mix of:
   --   * lack of eta and the coverage

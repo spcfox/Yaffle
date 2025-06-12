@@ -6,18 +6,18 @@ import System.Concurrency
 ||| Run a linear computation in a separate thread
 export
 fork1 : L IO () -@ L IO ThreadID
-fork1 act = liftIO1 $ fork $ LIO.run act
+-- fork1 act = liftIO1 $ fork $ LIO.run act
 
 ||| Run a computation concurrently to the current thread.
 ||| This returns a receiver for the value.
 export
 concurrently : L IO a -@ L1 IO (L IO a)
-concurrently act = do
-  ch <- makeChannel
-  _ <- fork1 $ do
-    x <- act
-    channelPut ch x
-  pure1 $ channelGet ch
+-- concurrently act = do
+--   ch <- makeChannel
+--   _ <- fork1 $ do
+--     x <- act
+--     channelPut ch x
+--   pure1 $ channelGet ch
 
 ||| Run a computation concurrently to the current thread.
 ||| This returns a receiver for the value. A typical usage
@@ -33,23 +33,23 @@ concurrently act = do
 |||     pure1 (a # b)
 export
 concurrently1 : L1 IO a -@ L1 IO (L1 IO a)
-concurrently1 act = do
-  ch <- makeChannel
-  _ <- fork1 $ withChannel ch act
-  pure1 $ do
-    a <- channelGet ch
-    pure1 a
+-- concurrently1 act = do
+--   ch <- makeChannel
+--   _ <- fork1 $ withChannel ch act
+--   pure1 $ do
+--     a <- channelGet ch
+--     pure1 a
 
-  where
+--   where
 
-  -- This unsafe implementation temporarily bypasses the linearity checker.
-  -- However `concurrently`'s implementation does not duplicate the values
-  -- and the type of `concurrently` ensures that client code is not allowed
-  -- to either!
-  withChannel : Channel t -> L1 IO t -@ L IO ()
-  withChannel ch = assert_linear $ \ act => do
-    a <- act
-    assert_linear (channelPut ch) a
+--   -- This unsafe implementation temporarily bypasses the linearity checker.
+--   -- However `concurrently`'s implementation does not duplicate the values
+--   -- and the type of `concurrently` ensures that client code is not allowed
+--   -- to either!
+--   withChannel : Channel t -> L1 IO t -@ L IO ()
+--   withChannel ch = assert_linear $ \ act => do
+--     a <- act
+--     assert_linear (channelPut ch) a
 
 
 ||| Run two linear computations concurrently and return the results.

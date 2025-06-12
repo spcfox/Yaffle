@@ -356,12 +356,12 @@ step (MkMeaning s e f) (LDR p) = Now (MkMeaning (lookup f p :: s) e f)
 step (MkMeaning (a :: fun :: s) e f) APP
   -- TODO: Nisse-style transform for guardedness
   = Later $ do let MkClosure cd e1 f1 = fun
-               MkMeaning [v] _ _ <- assert_total (steps (MkMeaning [] (a :: e1) (fun, f1)) cd)
+               MkMeaning [v] _ _ <- steps (MkMeaning [] (a :: e1) (fun, f1)) cd
                Now (MkMeaning (v :: s) e f)
 step (MkMeaning (a :: fun :: s) e f) TAP
   -- TODO: Actual tail calls
   = Later $ do let MkClosure cd e1 f1 = fun
-               MkMeaning [v] _ _ <- assert_total (steps (MkMeaning [] (a :: e1) (fun, f1)) cd)
+               MkMeaning [v] _ _ <- steps (MkMeaning [] (a :: e1) (fun, f1)) cd
                Now (MkMeaning (v :: s) e f)
 step (MkMeaning (v :: s) e f) RTN = Now (MkMeaning [v] e f)
 

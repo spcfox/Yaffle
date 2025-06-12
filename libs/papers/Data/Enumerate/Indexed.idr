@@ -87,6 +87,7 @@ isized f (S n) v = runIEnumerator (f v) (isized f n)
 ------------------------------------------------------------------------------
 
 export
+covering
 indexed : (d : i -> IDesc List i) -> (v : i) -> IEnumerator (Fix d) (Fix d v)
 indexed d v = MkFix <$> go (d v) where
 
@@ -99,10 +100,12 @@ indexed d v = MkFix <$> go (d v) where
   go (Sig s vs f) = sig (const vs) (\ x => go (f x))
 
 export
+covering
 0 Memorator : (d : Desc p) -> (Fix d -> Type) -> Type -> Type
 Memorator d a b = (d ~> (List . a)) -> List b
 
 export
+covering
 memorate : {d : Desc p} ->
            {0 b : Fix d -> Type} ->
            ((x : Fix d) -> Memorator d b (b x)) ->

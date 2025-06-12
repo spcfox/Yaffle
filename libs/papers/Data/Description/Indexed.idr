@@ -26,6 +26,7 @@ Elem (d1 + d2) x = Either (Elem d1 x) (Elem d2 x)
 Elem (Sig s prop d) x = (v : s ** Elem (d v) x)
 
 public export
+covering
 data Fix : (i -> IDesc p i) -> i -> Type where
   MkFix : assert_total (Elem (d i) (Fix d)) -> Fix d i
 
@@ -46,6 +47,7 @@ map (d1 + d2) f (Right v) = Right (map d2 f v)
 map (Sig s _ d) f (x ** v) = (x ** map (d x) f v)
 
 export
+covering
 ifold : {d : i -> IDesc p i} ->
         ((v : i) -> Elem (d v) x -> x v) ->
         {v : i} -> Fix d v -> x v

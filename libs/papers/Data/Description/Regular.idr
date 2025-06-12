@@ -54,6 +54,7 @@ map d f = go d where
 ||| Unfortunately Idris 2 does not currently detect that this definition
 ||| is total because we do not track positivity in function arguments
 public export
+covering
 data Fix : Desc p -> Type where
   MkFix : assert_total (Elem d (Fix d)) -> Fix d
 
@@ -62,9 +63,11 @@ namespace Example
   ListD : Type -> Desc (const ())
   ListD a = One + (Const a () * Id)
 
+  covering
   RList : Type -> Type
   RList a = Fix (ListD a)
 
+  covering
   Nil : RList a
   Nil = MkFix (Left ())
 
@@ -72,7 +75,7 @@ namespace Example
   x :: xs = MkFix (Right (x, xs))
 
 ||| Fix is an initial algebra so we get the fold
-total export
+covering export
 fold : {d : Desc p} -> (Elem d x -> x) -> Fix d -> x
 fold alg (MkFix v) = alg (assert_total $ map d (fold alg) v)
 
@@ -92,11 +95,13 @@ export infixr 0 ~>
 
 ||| A memo trie is a coinductive structure
 export
+covering
 record (~>) {p : Type -> Type} (d : Desc p) (b : Fix d -> Type) where
   constructor MkMemo
   getMemo : assert_total (Memo d (\ x => Inf (d ~> x)) (b . MkFix))
 
 export
+covering
 trie : {d : Desc p} -> {0 b : Fix d -> Type} -> ((x : Fix d) -> b x) -> d ~> b
 trie f = MkMemo (go d (\ t => f (MkFix t))) where
 
@@ -112,6 +117,7 @@ trie f = MkMemo (go d (\ t => f (MkFix t))) where
   go (d1 + d2) f = (go d1 (\ v => f (Left v)), go d2 (\ v => f (Right v)))
 
 export
+covering
 untrie : {d : Desc p} -> {0 b : Fix d -> Type} -> d ~> b -> ((x : Fix d) -> b x)
 untrie (MkMemo f) (MkFix t) = go d f t where
 

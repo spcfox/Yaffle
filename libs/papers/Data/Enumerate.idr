@@ -104,6 +104,7 @@ stream (MkEnumerator enum) = iterate enum []
 ------------------------------------------------------------------------------
 
 export
+covering
 regular : (d : Desc List) -> Enumerator (Fix d) (Fix d)
 regular d = MkFix <$> go d where
 
@@ -120,15 +121,19 @@ namespace Example
   ListD : List a -> Desc List
   ListD as = One + (Const a as * Id)
 
+  covering
   lists : (xs : List a) -> Nat -> List (Fix (ListD xs))
   lists xs = sized (regular (ListD xs))
 
+  covering
   encode : {0 xs : List a} -> List a -> Fix (ListD xs)
   encode = foldr (\x, xs => MkFix (Right (x, xs))) (MkFix (Left ()))
 
+  covering
   decode : {xs : List a} -> Fix (ListD xs) -> List a
   decode = fold (either (const []) (uncurry (::)))
 
   -- [[], ['a'], ['a', 'a'], ['b'], ['a', 'b'], ['b', 'a'], ['b', 'b']]
+  covering
   abs : List (List Char)
   abs = decode <$> lists ['a', 'b'] 3
