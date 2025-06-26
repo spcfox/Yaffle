@@ -775,12 +775,12 @@ parameters {auto c : Ref Ctxt Defs} {auto u : Ref UST UState}
   Core.Unify.Unify.Term.unify umode fc env x y
      = do x' <- nf env x
           y' <- nf env y
-          unify umode fc env x' y'
+          logDepth $ unify umode fc env x' y'
 
   Core.Unify.Unify.Term.unifyWithLazy umode fc env x y
      = do x' <- nf env x
           y' <- nf env y
-          unifyWithLazy umode fc env x' y'
+          logDepth $ unifyWithLazy umode fc env x' y'
 
 public export
 data SolveMode = Normal -- during elaboration: unifies and searches

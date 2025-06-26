@@ -716,8 +716,8 @@ convertWithLazy withLazy fc elabinfo env x y
           catch
             (do let lazy = !isLazyActive && withLazy
                 vs <- if lazy
-                         then unifyWithLazy umode fc env x y
-                         else unify umode fc env x y
+                         then logDepth $ unifyWithLazy umode fc env x y
+                         else logDepth $ unify umode fc env x y
                 when (holesSolved vs) $
                     solveConstraints umode Normal
                 pure vs)

@@ -666,7 +666,7 @@ groupCons fc fn pvars cs
                               Just t <- lookupTyExact n (gamma defs)
                                    | Nothing => pure (VErased fc Placeholder)
                               expand !(nf (mkEnv fc vars') (embed t))
-             (patnames ** (l, newargs)) <- nextNames {vars=vars'} rig fc "e" pargs cty
+             (patnames ** (l, newargs)) <- logDepth $ nextNames {vars=vars'} rig fc "e" pargs cty
              -- Update non-linear names in remaining patterns (to keep
              -- explicit dependencies in types accurate)
              let pats' = updatePatNames (updateNames (zip patnames (map snd pargs)))
@@ -1224,7 +1224,7 @@ mkPatClause fc fn args ty pid (ps, rhs)
                   -- read what we know off 'nty', and reverse it
                   argTys <- getArgTys [<] (cast args) nty
                   log "compile.casetree" 20 $ "Argument types " ++ show argTys
-                  ns <- mkNames args ps eq (reverse argTys)
+                  ns <- logDepth $ mkNames args ps eq (reverse argTys)
                   log "compile.casetree" 20 $
                     "Make pat clause for names " ++ show ns
                      ++ " in LHS " ++ show ps

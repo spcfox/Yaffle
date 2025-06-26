@@ -421,7 +421,7 @@ parameters {auto c : Ref Ctxt Defs} (eflags : EvalFlags)
 --   eval : LocalEnv free vars ->
 --          Env Term vars ->
 --          Term (vars ++ free) -> Core (Glued vars)
-  eval locs env (Local fc idx p) = evalLocal env fc p locs
+  eval locs env (Local fc idx p) = logDepth $ evalLocal env fc p locs
   eval locs env (Ref fc nt n) = evalRef locs env fc nt n
   eval locs env (Meta fc n i scope)
        = evalMeta locs env fc n i scope
@@ -456,20 +456,20 @@ parameters {auto c : Ref Ctxt Defs}
 
   export
   nf : Env Term vars -> Term vars -> Core (Glued vars)
-  nf = eval Full [<]
+  nf env tm = logDepth $ eval Full [<] env tm
 
   export
   nfLHS : Env Term vars -> Term vars -> Core (Glued vars)
-  nfLHS = eval KeepAs [<]
+  nfLHS env tm = logDepth $ eval KeepAs [<] env tm
 
   export
   nfHoles : Env Term vars -> Term vars -> Core (Glued vars)
-  nfHoles = eval HolesOnly [<]
+  nfHoles env tm  = logDepth $ eval HolesOnly [<] env tm
 
   export
   nfKeepLet : Env Term vars -> Term vars -> Core (Glued vars)
-  nfKeepLet = eval KeepLet [<]
+  nfKeepLet env tm = logDepth $ eval KeepLet [<] env tm
 
   export
   nfTotality : Env Term vars -> Term vars -> Core (Glued vars)
-  nfTotality = eval Totality [<]
+  nfTotality env tm = logDepth $ eval Totality [<] env tm
