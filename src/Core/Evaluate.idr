@@ -165,7 +165,8 @@ parameters {auto c : Ref Ctxt Defs}
       = when !(logging str n) $
           do tm <- quote env tmnf
              tm' <- toFullNames tm
-             logString str n (msg ++ ": " ++ show tm')
+             depth <- getDepth
+             logString depth str n (msg ++ ": " ++ show tm')
 
   -- Log message with a term, reducing holes and translating back to human
   -- readable names first
@@ -178,7 +179,8 @@ parameters {auto c : Ref Ctxt Defs}
       = do defs <- get Ctxt
            tmnf <- normalise env tm
            tm' <- toFullNames tmnf
-           logString str n (msg ++ ": " ++ show tm')
+           depth <- getDepth
+           logString depth str n (msg ++ ": " ++ show tm')
 
   export
   logTermNF : {vars : _} ->
@@ -195,7 +197,8 @@ parameters {auto c : Ref Ctxt Defs}
            Nat -> String -> Env Term vars -> Core ()
   logEnv str n msg env
       = when !(logging str n) $
-          do logString str n msg
+          do depth <- getDepth
+             logString depth str n msg
              dumpEnv env
     where
       dumpEnv : {vs : SnocList Name} -> Env Term vs -> Core ()

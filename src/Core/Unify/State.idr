@@ -631,11 +631,12 @@ parameters {auto c : Ref Ctxt Defs} {auto u : Ref UST UState}
   dumpHole str n hole
       = do ust <- get UST
            defs <- get Ctxt
+           depth <- getDepth
            case !(lookupCtxtExact (Resolved hole) (gamma defs)) of
             Nothing => pure ()
             Just gdef => case (definition gdef, type gdef) of
                (Guess tm envb constraints, ty) =>
-                    do logString str n $
+                    do logString depth str n $
                          "!" ++ show !(getFullName (Resolved hole)) ++ " : "
                              ++ show !(toFullNames !(normaliseHoles [<] ty))
                          ++ "\n\t  = "
@@ -643,13 +644,13 @@ parameters {auto c : Ref Ctxt Defs} {auto u : Ref UST UState}
                              ++ "\n\twhen"
                        traverse_ dumpConstraint constraints
                (Hole _ p, ty) =>
-                    logString str n $
+                    logString depth str n $
                       "?" ++ show (fullname gdef) ++ " : "
                           ++ show !(normaliseHoles [<] ty)
                           ++ if implbind p then " (ImplBind)" else ""
                           ++ if invertible gdef then " (Invertible)" else ""
                (BySearch _ _ _, ty) =>
-                    logString str n $
+                    logString depth str n $
                        "Search " ++ show hole ++ " : " ++
                        show !(toFullNames !(normaliseHoles [<] ty))
                (ImpBind, ty) =>
@@ -666,15 +667,16 @@ parameters {auto c : Ref Ctxt Defs} {auto u : Ref UST UState}
       dumpConstraint cid
           = do ust <- get UST
                defs <- get Ctxt
+               depth <- getDepth
                case lookup cid (constraints ust) of
                     Nothing => pure ()
-                    Just Resolved => logString str n "\tResolved"
+                    Just Resolved => logString depth str n "\tResolved"
                     Just (MkConstraint _ lazy env x y) =>
-                      do logString str n $
+                      do logString depth str n $
                            "\t  " ++ show !(toFullNames x)
                                   ++ " =?= " ++ show !(toFullNames y)
                     Just (MkSeqConstraint _ _ xs ys) =>
-                         logString str n $ "\t\t" ++ show xs ++ " =?= " ++ show ys
+                         logString depth str n $ "\t\t" ++ show xs ++ " =?= " ++ show ys
 
   export
   dumpConstraints : (topics : String) ->
@@ -685,9 +687,10 @@ parameters {auto c : Ref Ctxt Defs} {auto u : Ref UST UState}
   dumpConstraints str n all
       = do ust <- get UST
            defs <- get Ctxt
+           depth <- getDepth
            when !(logging str n) $ do
              let hs = toList (guesses ust) ++
                       toList (if all then holes ust else currentHoles ust)
              unless (isNil hs) $
-               do logString str n "--- CONSTRAINTS AND HOLES ---"
+               do logString depth str n "--- CONSTRAINTS AND HOLES ---"
                   traverse_ (dumpHole str n) (map fst hs)
