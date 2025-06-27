@@ -1153,7 +1153,7 @@ mutual
         -- shouldn't be necessary, so fix that!
         showApp : {vars : _} -> Term vars -> List (Term vars) -> String
         showApp (Local _ idx p) []
-           = show (nameAt p) ++ "[" ++ show idx ++ "]"
+          = show (nameAt p) ++ "[" ++ show idx ++ "]"
         showApp (Ref _ _ n) [] = show n
         showApp (Meta _ n _ args) []
             = "?" ++ show n ++ "_" ++ show args
@@ -1164,8 +1164,8 @@ mutual
             = "let " ++ show c ++ show x ++ " : " ++ show ty ++
               " = " ++ show val ++ " in " ++ show sc
         showApp (Bind _ x (Pi _ c info ty) sc) []
-            = "(" ++ withPiInfo info (show c ++ show x ++ " : " ++ show ty) ++
-              " -> " ++ show sc ++ ")"
+            = withPiInfo info (show c ++ show x ++ " : " ++ show ty) ++
+              " -> " ++ show sc
         showApp (Bind _ x (PVar _ c info ty) sc) []
             = withPiInfo info ("pat " ++ show c ++ show x ++ " : " ++ show ty) ++
               " => " ++ show sc
@@ -1178,21 +1178,18 @@ mutual
         showApp (App _ _ _ _) [] = "[can't happen]"
         showApp (As _ _ n tm) [] = show n ++ "@" ++ show tm
         showApp (Case _ t r sc scty alts) []
-            = "case " ++ show r ++ " " ++ show sc ++ " : " ++ show scty ++ " of " ++ show alts
+              = "case " ++ show r ++ " " ++ show sc ++ " : " ++ show scty ++ " of " ++ show alts
         showApp (TDelayed _ _ tm) [] = "%Delayed " ++ show tm
         showApp (TDelay _ _ _ tm) [] = "%Delay " ++ show tm
         showApp (TForce _ _ tm) [] = "%Force " ++ show tm
         showApp (PrimVal _ c) [] = show c
-        showApp (PrimOp _ op args) [] = show op ++ show args
-        showApp (Erased _ Placeholder) [] = "[__]"
-        showApp (Erased _ Impossible) [] = "impossible"
-        showApp (Erased _ (Dotted t)) [] = ".(\{showApp t []})"
-        showApp (Unmatched _ str) [] = "Unmatched: " ++ show str
+        showApp (Erased _ (Dotted t)) [] = ".(" ++ show t ++ ")"
+        showApp (Erased _ _) [] = "[__]"
         showApp (TType _ u) [] = "Type"
-        showApp f args@(_ :: _)
-          = "(" ++ assert_total (show f) ++ " " ++
-             assert_total (showSep " " (map show args))
-             ++ ")"
+        showApp _ [] = "???"
+        showApp f args = "(" ++ assert_total (show f) ++ " " ++
+                          assert_total (showSep " " (map show args))
+                      ++ ")"
 
   export
   {vars : _} -> Show (CaseScope vars) where
