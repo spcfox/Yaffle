@@ -156,7 +156,11 @@ substInPatInfo : {pvar, vars, todo : _} ->
 substInPatInfo {pvar} {vars} fc n tm p ps
     = case argType p of
            Known c ty =>
-                do tynf <- expand !(nf (mkEnv fc _) ty)
+                do logTerm "compile.casetree" 25 "substInPatInfo-Known-tm" tm
+                   logTerm "compile.casetree" 25 "substInPatInfo-Known-ty" ty
+                   log "compile.casetree" 25 $ "n: " ++ show n
+                   let env = mkEnv fc _
+                   tynf <- expand !(nf env ty)
                    case tynf of
                         VApp{} =>
                            pure ({ argType := Known c (substName n tm ty) } p, ps)
@@ -352,7 +356,9 @@ substInClause : {a, vars, todo : _} ->
                 FC -> PatClause vars (todo :< a) ->
                 Core (PatClause vars (todo :< a))
 substInClause {vars} {a} fc (MkPatClause pvars pmaps (MkInfo c pat pprf fty :: pats) pid rhs)
-    = do pats' <- substInPats fc a (mkTerm vars pat) pats
+    = do let tm = mkTerm vars pat
+         log "compile.casetree.subst" 50 "Substituting \{show tm} for \{show a} in \{show pat}"
+         pats' <- substInPats fc a tm pats
          pure (MkPatClause pvars pmaps (MkInfo c pat pprf fty :: pats') pid rhs)
 
 data Partitions : List (PatClause vars todo) -> Type where
@@ -666,7 +672,12 @@ groupCons fc fn pvars cs
                               Just t <- lookupTyExact n (gamma defs)
                                    | Nothing => pure (VErased fc Placeholder)
                               expand !(nf (mkEnv fc vars') (embed t))
-             (patnames ** (l, newargs)) <- logDepth $ nextNames {vars=vars'} rig fc "e" pargs cty
+             (patnames ** (l, newargs)) <- logDepth $ do
+                log "compile.casetree" 25 $ "addConG nextNames for " ++ show (toList pargs)
+                logNF "compile.casetree" 25 "addConG nextNames cty" (mkEnv fc vars') cty
+                nextNames {vars=vars'} rig fc "e" pargs cty
+             log "compile.casetree" 25 $ "addConG patnames  " ++ show patnames
+             log "compile.casetree" 25 $ "addConG newargs  " ++ show newargs
              -- Update non-linear names in remaining patterns (to keep
              -- explicit dependencies in types accurate)
              let pats' = updatePatNames (updateNames (zip patnames (map snd pargs)))
@@ -1012,6 +1023,8 @@ mutual
            let (_ ** (MkNVar next)) = nextIdx phase nps
            let prioritizedClauses = shuffleVars next <$> clauses
            (n ** MkNVar next') <- pickNextViable fc phase fn (getNPs <$> prioritizedClauses)
+           log "compile.casetree" 25 $ "Clauses " ++ show clauses
+           log "compile.casetree" 25 $ "Err " ++ show err
            log "compile.casetree.pick" 25 $ "Picked " ++ show n ++ " as the next split"
            let clauses' = shuffleVars next' <$> prioritizedClauses
            log "compile.casetree.clauses" 25 $
@@ -1101,7 +1114,10 @@ mutual
   -- in the type if we can.
   conRule {a} fc fn phase cs@(MkPatClause pvars pmaps (MkInfo c pat pprf fty :: pats) pid rhs :: rest) err
       = do refinedcs <- traverse (substInClause fc) cs
+           log "compile.casetree" 5 $ "conRule refinedcs: " ++ show refinedcs
            groups <- groupCons fc fn pvars refinedcs
+           log "compile.casetree" 5 $ "conRule groups: " ++
+                    show a ++ ", " ++ show groups ++ " , " ++ show cs
            ty <- case fty of
                       Known _ t => pure t
                       Stuck tm => do logTerm "compile.casetree" 25 "Stuck" tm
@@ -1125,18 +1141,27 @@ mutual
     where
       updateVar : PatClause vars (todo :< a) -> Core (PatClause vars todo)
       -- replace the name with the relevant variable on the rhs
-      updateVar (MkPatClause pvars pmaps (MkInfo c (PLoc pfc n) prf fty :: pats) pid rhs)
-          = do log "compile.casetree" 5 $ "Var update " ++
+      updateVar (MkPatClause pvars pmaps (MkInfo {idx} c (PLoc pfc n) prf fty :: pats) pid rhs)
+          = do log "compile.casetree.updateVar" 50
+                 "Replacing \{show n} with \{show a}[\{show idx}] in \{show rhs}"
+               log "compile.casetree" 5 $ "Var update " ++
+                    show a ++ ", " ++ show n ++ ", vars: " ++ show vars ++ " ==> " ++ show !(toFullNames rhs)
+               let rhs' = substName n (Local pfc _ prf) rhs
+               logTerm "compile.casetree" 5 "updateVar-2 rhs'" rhs'
+               log "compile.casetree" 5 $ "Var update " ++
                     show a ++ ", " ++ show n ++ " ==> " ++ show !(toFullNames rhs)
                let pmaps' = addPVarMap pfc n (MkVar prf) pmaps
                pure (MkPatClause (n :: pvars) pmaps'
                         !(substInPats fc a (Local pfc _ prf) pats)
-                        pid (substName n (Local pfc _ prf) rhs))
+                        pid rhs')
       -- If it's an as pattern, replace the name with the relevant variable on
       -- the rhs then continue with the inner pattern
       updateVar (MkPatClause pvars pmaps (MkInfo c (PAs pfc n pat) prf fty :: pats) pid rhs)
-          = do pats' <- substInPats fc a (mkTerm _ pat) pats
+          = do log "compile.casetree" 5 $ "Var replace " ++
+                    show a ++ ", " ++ show n ++ ", vars: " ++ show vars ++ " ==> " ++ show !(toFullNames rhs)
+               pats' <- substInPats fc a (mkTerm _ pat) pats
                let rhs' = substName n (Local pfc _ prf) rhs
+               logTerm "compile.casetree" 5 "updateVar-3 rhs'" rhs'
                updateVar (MkPatClause pvars pmaps (MkInfo c pat prf fty :: pats') pid rhs')
       -- match anything, name won't appear in rhs but need to update
       -- LHS pattern types based on what we've learned
@@ -1158,10 +1183,12 @@ mutual
             Maybe (CaseTree vars) ->
             Core (Maybe (CaseTree vars))
   mixture fc fn phase (ConClauses cs rest) err
-      = do fallthrough <- mixture fc fn phase rest err
+      = do log "compile.casetree" 25 $ "Mixture ConClauses Rest: " ++ show rest ++ ", cs: " ++ show cs
+           fallthrough <- mixture fc fn phase rest err
            pure (Just !(conRule fc fn phase cs fallthrough))
   mixture fc fn phase (VarClauses vs rest) err
-      = do fallthrough <- mixture fc fn phase rest err
+      = do log "compile.casetree" 25 $ "Mixture VarClauses Rest: " ++ show rest ++ ", vs: " ++ show vs
+           fallthrough <- mixture fc fn phase rest err
            pure (Just !(varRule fc fn phase vs fallthrough))
   mixture fc fn {a} {todo} phase NoClauses err
       = pure err
@@ -1219,12 +1246,13 @@ mkPatClause : {auto c : Ref Ctxt Defs} ->
 mkPatClause fc fn args ty pid (ps, rhs)
     = maybe (throw (CaseCompile fc fn DifferingArgNumbers))
             (\eq =>
-               do nty <- expand !(nf [<] ty)
+               do logTerm "compile.casetree" 20 "mkPatClause ty" ty
+                  nty <- expand !(nf [<] ty)
                   -- The arguments are in reverse order, so we need to
                   -- read what we know off 'nty', and reverse it
-                  argTys <- getArgTys [<] (cast args) nty
+                  argTys <- logQuiet $ getArgTys [<] (cast args) nty
                   log "compile.casetree" 20 $ "Argument types " ++ show argTys
-                  ns <- logDepth $ mkNames args ps eq (reverse argTys)
+                  ns <- logQuiet $ mkNames args ps eq (reverse argTys)
                   log "compile.casetree" 20 $
                     "Make pat clause for names " ++ show ns
                      ++ " in LHS " ++ show ps
@@ -1262,8 +1290,11 @@ patCompile fc fn phase ty [] def
             def
 patCompile fc fn phase ty (p :: ps) def
     = do let (ns ** num) = getNames 0 (fst p)
+         log "compile.casetree" 25 $ "ns: " ++ show ns
          pats <- mkPatClausesFrom 0 ns (p :: ps)
+         log "compile.casetree" 25 $ "Def " ++ show def
          -- higher verbosity: dump the raw data structure
+         log "compile.casetree" 10 $ "pats " ++ show pats
          log "compile.casetree" 5 $ "Patterns, " ++ show phase ++ ":" ++
                                     show !(toFullNames pats)
          i <- newRef PName (the Int 0)
@@ -1297,7 +1328,9 @@ toPatClause fc n (lhs, rhs)
                     (np, _) <- getPosition n (gamma defs)
                     (fnp, _) <- getPosition fn (gamma defs)
                     if np == fnp
-                       then pure (!(traverseSnocList argToPat args), rhs)
+                       then do pats <- traverseSnocList argToPat args
+                               log "compile.casetree" 10 $ "toPatClause args: " ++ show args ++ ", pats: " ++ show pats
+                               pure (pats, rhs)
                        else throw (GenericMsg ffc ("Wrong function name in pattern LHS " ++ show (n, fn)))
            (f, args) => throw (GenericMsg fc "Not a function name in pattern LHS")
 
@@ -1311,6 +1344,7 @@ simpleCase : {auto c : Ref Ctxt Defs} ->
              Core (args ** CaseTree args)
 simpleCase fc phase fn ty def clauses
     = do ps <- traverse (toPatClause fc fn) clauses
+         log "compile.casetree" 5 $ "ps: " ++ show ps
          patCompile fc fn phase ty ps def
 
 mutual
@@ -1420,9 +1454,10 @@ makePMDef : {auto c : Ref Ctxt Defs} ->
 -- for the type, which we can use in coverage checking to ensure that one of
 -- the arguments has an empty type
 makePMDef fc ct phase fn ty []
-    = do log "compile.casetree.getpmdef" 20 "getPMDef: No clauses!"
-         defs <- get Ctxt
-         pure (!(getArgs 0 !(expand !(nf [<] ty))) ** (Unmatched fc "No clauses", []))
+    = do defs <- get Ctxt
+         args <- getArgs 0 !(expand !(nf [<] ty))
+         log "compile.casetree.getpmdef" 20 "getPMDef: No clauses! args: \{show args}"
+         pure (args ** (Unmatched fc "No clauses", []))
   where
     getArgs : Int -> NF [<] -> Core (SnocList Name)
     getArgs i (VBind fc x (Pi _ _ _ _) sc)

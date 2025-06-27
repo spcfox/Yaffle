@@ -214,7 +214,7 @@ parameters {auto c : Ref Ctxt Defs} {auto c : Ref UST UState}
                 Term newvars -> -- shrunk environment
                 Core Bool -- postpone if the type is yet unknown
   tryInstantiate {newvars} loc mode env mname mref num mdef locs otm tm
-      = do logTerm "unify.instantiate" 5 ("Instantiating in " ++ show newvars) tm
+      = do logTerm "unify.instantiate" 5 ("Instantiating in " ++ show !(traverse toFullNames $ toList newvars)) !(toFullNames tm)
            case fullname mdef of
                 PV pv pi => throw (PatternVariableUnifies loc (getLoc otm) env (PV pv pi) otm)
                 _ => pure ()
@@ -222,7 +222,7 @@ parameters {auto c : Ref Ctxt Defs} {auto c : Ref UST UState}
            -- Make sure any applications are expanded to pi binders, if that's
            -- what they are in the type
            ty <- quoteBinders [<] !(nf [<] (type mdef))
-           logTerm "unify.instantiate" 5 ("Type: " ++ show mname) (type mdef)
+           logTerm "unify.instantiate" 5 ("Type: " ++ show !(toFullNames mname)) (type mdef)
            logTerm "unify.instantiate" 5 ("Type: " ++ show mname) ty
            log "unify.instantiate" 5 ("With locs: " ++ show locs)
            log "unify.instantiate" 5 ("From vars: " ++ show newvars)

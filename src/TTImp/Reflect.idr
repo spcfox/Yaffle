@@ -238,8 +238,8 @@ mutual
                           ns' <- reify defs !(expand ns)
                           t' <- reify defs !(expand t)
                           pure (IWithUnambigNames fc' ns' t')
-               _ => cantReify val "TTImp"
-    reify defs val = cantReify val "TTImp"
+               _ => cantReify val "VDCon"
+    reify defs val = cantReify val "VDCon"
 
   export
   Reify IFieldUpdate where

@@ -1083,6 +1083,8 @@ compileExpr ANF c _ outputDir tm outfile =
      cdata <- getCompileData False ANF tm
      let defs = anf cdata
 
+     for_ defs $ \d => log "compiler.refc" 10 $ "compileExpr def: \{show d}"
+
      generateCSourceFile defs outn
      Just _ <- compileCObjectFile outn outobj
        | Nothing => pure Nothing

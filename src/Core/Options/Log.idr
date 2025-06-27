@@ -52,6 +52,8 @@ knownTopics = [
     ("compile.casetree.measure", Just "Log the node counts of each runtime case tree."),
     ("compile.casetree.pick", Nothing),
     ("compile.casetree.partition", Nothing),
+    ("compile.casetree.subst", Nothing),
+    ("compile.casetree.updateVar", Nothing),
     ("compiler.const-fold", Just "Log definitions before and after constant folding."),
     ("compiler.cse", Just "Log information about common sub-expression elimination."),
     ("compiler.identity", Just "Log definitions that are equivalent to identity at runtime."),

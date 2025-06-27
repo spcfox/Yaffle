@@ -4,6 +4,7 @@ import Compiler.LambdaLift
 
 import Core.CompileExpr
 import Core.Context
+import Core.Context.Log
 import Core.Core
 import Core.TT
 
@@ -248,14 +249,17 @@ mutual
       = pure $ MkAConstAlt c !(anf vs sc)
 
 export
-toANF : LiftedDef -> Core ANFDef
+toANF : {auto c : Ref Ctxt Defs} -> LiftedDef -> Core ANFDef
 toANF (MkLFun args scope sc)
     = do v <- newRef Next (the Int 0)
+         log "compile.execute" 40 $ "toANF args: \{show args}, scope: \{show scope}, lifted: \{show sc}"
          (iargs, vsNil) <- bindArgs args [<]
          let vs : AVars args = rewrite sym (appendLinLeftNeutral args) in
                                       vsNil
          (iargs', vs) <- bindArgs scope vs
-         pure $ MkAFun (cast (iargs ++ reverse iargs')) !(anf vs sc)
+         sc' <- anf vs sc
+         log "compile.execute" 40 $ "toANF iargs: \{show iargs}, iargs': \{show iargs'}, lifted: \{show sc'}"
+         pure $ MkAFun (cast (iargs ++ reverse iargs')) sc'
   where
     bindArgs : {auto v : Ref Next Int} ->
                (args : SnocList Name) -> AVars vars' ->

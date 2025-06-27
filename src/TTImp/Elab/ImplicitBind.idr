@@ -588,6 +588,7 @@ checkBindHere rig elabinfo nest env fc bindmode tm exp
                    -- before binding names
 
          logTerm "elab.implicits" 5 "Binding names" tmv
+         defs <- get Ctxt
          logTermNF "elab.implicits" 5 "Normalised" env tmv
          argImps <- getToBind fc (elabMode elabinfo)
                               bindmode env dontbind

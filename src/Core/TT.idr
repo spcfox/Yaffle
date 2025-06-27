@@ -379,6 +379,13 @@ data SubVars : SnocList Name -> SnocList Name -> Type where
      KeepCons : SubVars xs ys -> SubVars (xs :< x) (ys :< x)
 
 export
+covering
+{xs, ys : _} -> Show (SubVars xs ys) where
+  show SubRefl = "ThinRefl"
+  show (DropCons t) = "ThinDrop \{show t}"
+  show (KeepCons t) = "ThinKeep \{show t}"
+
+export
 subElem : {idx : Nat} -> (0 p : IsVar name idx xs) ->
           SubVars ys xs -> Maybe (Var ys)
 subElem prf SubRefl = Just (MkVar prf)
@@ -539,6 +546,12 @@ namespace Bounds
   sizeOf : Bounds xs -> SizeOf xs
   sizeOf None        = zero
   sizeOf (Add _ _ b) = suc (sizeOf b)
+
+export
+covering
+{vars : _} -> Show (Bounds vars) where
+  show None = "None"
+  show (Add x n b) = show x ++ " " ++ show n ++ " + " ++ show b
 
 export
 addVars : SizeOf outer -> Bounds bound ->

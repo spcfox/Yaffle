@@ -194,6 +194,12 @@ Show UnifyMode where
 public export
 data AddLazy = NoLazy | AddForce LazyReason | AddDelay LazyReason
 
+export
+Show AddLazy where
+  show NoLazy = "NoLazy"
+  show (AddForce _) = "AddForce"
+  show (AddDelay _) = "AddDelay"
+
 public export
 record UnifyResult where
   constructor MkUnifyResult
@@ -201,6 +207,13 @@ record UnifyResult where
   holesSolved : Bool -- did we solve any holes?
   namesSolved : List Int -- which ones did we solve (as name indices)
   addLazy : AddLazy
+
+export
+Show UnifyResult where
+  show a = "constraints: " ++ show a.constraints
+    ++ ", holesSolved: " ++ show a.holesSolved
+    ++ ", namesSolved: " ++ show a.namesSolved
+    ++ ", addLazy: " ++ show a.addLazy
 
 export
 union : UnifyResult -> UnifyResult -> UnifyResult

@@ -27,6 +27,16 @@ data EEnv : SnocList Name -> SnocList Name -> Type where
      Lin : EEnv free [<]
      (:<) : EEnv free vars -> CExp free -> EEnv free (vars :< x)
 
+public export
+covering
+{free, vars : _} -> Show (EEnv free vars) where
+    show x = "EEnv [" ++ showAll x ++ "]{vars = " ++ show vars ++ ", free = " ++ show free ++ "}"
+        where
+            showAll : {free, vars : _} -> EEnv free vars -> String
+            showAll Lin = ""
+            showAll [< x] = show x
+            showAll (xx :< x) = showAll xx ++ ", " ++ show x
+
 Stack : SnocList Name -> Type
 Stack vars = List (CExp vars)
 
@@ -137,13 +147,16 @@ mutual
               {idx : Nat} -> (0 p : IsVar x idx (free ++ vars)) ->
               Core (CExp free)
   evalLocal {vars = [<]} fc rec stk env p
-      = pure $ unload stk (CLocal fc p)
+      = do log "compiler.inline.io_bind" 50 $ "Attempting to evalLocal-1, stk: \{show stk}, p: \{show $ nameAt p}, env: \{show env}"
+           pure $ unload stk (CLocal fc p)
   evalLocal {vars = xs :< x} fc rec stk (env :< v) First
-      = case stk of
+      = do log "compiler.inline.io_bind" 50 $ "Attempting to evalLocal-2, stk: \{show stk}, p: First, v: \{show v}, env: \{show env}"
+           case stk of
              [] => pure v
              _ => eval rec env stk (weakenNs (mkSizeOf xs) v)
   evalLocal {vars = xs :< x} fc rec stk (env :< _) (Later p)
-      = evalLocal fc rec stk env p
+      = do log "compiler.inline.io_bind" 50 $ "Attempting to evalLocal-3, stk: \{show stk}, p: Later \{show $ nameAt p}, env: \{show env}"
+           evalLocal fc rec stk env p
 
   tryApply : {vars, free : _} ->
              {auto c : Ref Ctxt Defs} ->
@@ -151,11 +164,13 @@ mutual
              List Name -> Stack free -> EEnv free vars -> CDef ->
              Core (Maybe (CExp free))
   tryApply {free} {vars} rec stk env (MkFun args exp)
-      = do let Just (env', stk') = takeFromStack env stk args
+      = do log "compiler.inline.io_bind" 50 $ "tryApply args: \{show $ toList args}, exp: \{show exp}, stk: \{show stk}, env: \{show env}"
+           let Just (env', stk') = takeFromStack env stk args
                | Nothing => pure Nothing
-           res <- eval rec env' stk'
-                     (rewrite appendAssociative free vars args in
-                              embed {vars = free ++ vars} exp)
+           let exp' = rewrite appendAssociative free vars args in
+                              embed {vars = free ++ vars} exp
+           log "compiler.inline.io_bind" 50 $ "tryApply stk': \{show stk'}, env': \{show env'}, rec: \{show rec}, exp': \{show exp'}"
+           res <- eval rec env' stk' exp'
            pure (Just res)
   tryApply rec stk env _ = pure Nothing
 
@@ -164,13 +179,16 @@ mutual
          {auto l : Ref LVar Int} ->
          List Name -> EEnv free vars -> Stack free -> CExp (free ++ vars) ->
          Core (CExp free)
-  eval rec env stk (CLocal fc p) = evalLocal fc rec stk env p
+  eval rec env stk (CLocal fc p)
+      = do log "compiler.inline.io_bind" 50 $ "Attempting to CLocal, env: \{show env}, stk: \{show stk}, p: \{show $ nameAt p}"
+           evalLocal fc rec stk env p
   -- This is hopefully a temporary hack, giving a special case for io_bind.
   -- Currently the elaborator is a bit cautious about inlining case blocks
   -- in case they duplicate work. We should fix that, to decide more accurately
   -- whether they're safe to inline, but until then this gives such a huge
   -- boost by removing unnecessary lambdas that we'll keep the special case.
   eval rec env stk (CRef fc n) = do
+        log "compiler.inline.io_bind" 50 $ "Attempting to CRef, rec: \{show rec}, env: \{show env}, stk: \{show stk}, n: \{show n}"
         when (n == NS primIONS (UN $ Basic "io_bind")) $
           log "compiler.inline.io_bind" 50 $
             "Attempting to inline io_bind, its stack is: \{show stk}"
@@ -202,14 +220,17 @@ mutual
                 if (Inline `elem` gdefFlags)
                     && (not (n `elem` rec))
                     && (not (NoInline `elem` gdefFlags))
-                   then do log "compiler.inline.eval" 25 $ "Inlining " ++ show n
-                                     ++ show def
+                   then do log "compiler.inline.eval" 25 $ "Inlining " ++ show n ++ show def
+                           log "compiler.inline.io_bind" 50 $ "Attempting to CRef Inline Apply, def: \{show def}, n: \{show n}, rec: \{show rec}"
                            ap <- tryApply (n :: rec) stk env def
+                           log "compiler.inline.io_bind" 50 $ "Attempting to CRef Inline Apply, ap: \{show ap}"
                            pure $ fromMaybe (unloadApp arity stk (CRef fc n)) ap
                    else pure $ unloadApp arity stk (CRef fc n)
   eval {vars} {free} rec env [] (CLam fc x sc)
-      = do xn <- genName "lamv"
-           sc' <- eval rec (env :< CRef fc xn) [] sc
+      = do log "compiler.inline.io_bind" 50 $ "Attempting to CLam, rec: \{show rec}, env: \{show env}, x: \{show x}, sc: \{show sc}"
+           xn <- genName "lamv"
+           sc' <- logDepth $ eval rec (env :< CRef fc xn) [] sc
+           log "compiler.inline.io_bind" 50 $ "Attempting to CLam, sc': \{show sc'}"
            pure $ CLam fc x (refToLocal xn x sc')
   eval rec env (e :: stk) (CLam fc x sc) = eval rec (env :< e) stk sc
   eval {vars} {free} rec env stk (CLet fc x False val sc)
@@ -233,18 +254,26 @@ mutual
            -- a name from another module where the job is already done
            defs <- get Ctxt
            Just gdef <- lookupCtxtExact n (gamma defs)
-                | Nothing => do args' <- traverse (eval (n :: rec) env []) args
+                | Nothing => do log "compiler.inline.io_bind" 50 $ "Attempting to CApp CRef Nothing, rec: \{show rec}, env: \{show env}, args: \{show args}"
+                                args' <- logDepth $ traverse (eval (n :: rec) env []) args
+                                log "compiler.inline.io_bind" 50 $ "Attempting to CApp CRef Nothing, stk: \{show stk}, n: \{show n}, args': \{show args'}"
                                 pure (unload stk
                                           (CApp fc (CRef nfc n) args'))
-           eval rec env (!(traverse (eval (n :: rec) env []) args) ++ stk) f
+           log "compiler.inline.io_bind" 50 $ "Attempting to CApp CRef, rec: \{show rec}, env: \{show env}, args: \{show args}"
+           args' <- logDepth $ traverse (eval (n :: rec) env []) args
+           log "compiler.inline.io_bind" 50 $ "Attempting to CApp CRef, env: \{show env}, args': \{show args'}, stk: \{show stk}, f: \{show f}"
+           eval rec env (args' ++ stk) f
   eval rec env stk (CApp fc f args)
-      = eval rec env (!(traverse (eval rec env []) args) ++ stk) f
+      = do log "compiler.inline.io_bind" 50 $ "Attempting to CApp, f: \{show f}, args: \{show args}"
+           stk' <- logDepth $ traverse (eval rec env []) args
+           log "compiler.inline.io_bind" 50 $ "Attempting to CApp, stk': \{show stk'}, stk: \{show stk}"
+           eval rec env (stk' ++ stk) f
   eval rec env stk (CCon fc n ci t args)
-      = pure $ unload stk $ CCon fc n ci t !(traverse (eval rec env []) args)
+      = pure $ unload stk $ CCon fc n ci t !(logDepth $ traverse (eval rec env []) args)
   eval rec env stk (COp fc p args)
-      = pure $ unload stk $ COp fc p !(traverseVect (eval rec env []) args)
+      = pure $ unload stk $ COp fc p !(logDepth $ traverseVect (eval rec env []) args)
   eval rec env stk (CExtPrim fc p args)
-      = pure $ unload stk $ CExtPrim fc p !(traverse (eval rec env []) args)
+      = pure $ unload stk $ CExtPrim fc p !(logDepth $ traverse (eval rec env []) args)
   eval rec env stk (CForce fc lr e)
       = case !(eval rec env [] e) of
              CDelay _ _ e' => eval rec [<] stk e'
@@ -252,13 +281,16 @@ mutual
   eval rec env stk (CDelay fc lr e)
       = pure $ unload stk (CDelay fc lr !(eval rec env [] e))
   eval rec env stk (CConCase fc sc alts def)
-      = do sc' <- eval rec env [] sc
+      = do log "compiler.inline.io_bind" 50 $ "Attempting to con case, env: \{show env}, sc: \{show sc}"
+           sc' <- logDepth $ eval rec env [] sc
            let env' = update sc env sc'
+           log "compiler.inline.io_bind" 50 $ "Attempting to con case, env': \{show env'}, stk: \{show stk}, sc': \{show sc'}, def: \{show def}"
            Nothing <- pickAlt rec env' stk sc' alts def | Just val => pure val
            def' <- traverseOpt (eval rec env' stk) def
-           pure $ caseOfCase $ CConCase fc sc'
-                     !(traverse (evalAlt fc rec env' stk) alts)
-                     def'
+           log "compiler.inline.io_bind" 50 $ "Attempting to con case, env': \{show env'}, stk: \{show stk}"
+           alts' <- logDepth $ traverse (evalAlt fc rec env' stk) alts
+           log "compiler.inline.io_bind" 50 $ "Attempting to con case, sc': \{show sc'}, def': \{show def'}"
+           pure $ caseOfCase $ CConCase fc sc' alts' def'
     where
       updateLoc : {idx, vs : _} ->
                   (0 p : IsVar x idx (free ++ vs)) ->
@@ -273,11 +305,11 @@ mutual
       update _ env _ = env
 
   eval rec env stk (CConstCase fc sc alts def)
-      = do sc' <- eval rec env [] sc
+      = do sc' <- logDepth $ eval rec env [] sc
            Nothing <- pickConstAlt rec env stk sc' alts def | Just val => pure val
            def' <- traverseOpt (eval rec env stk) def
            pure $ caseOfCase $ CConstCase fc sc'
-                         !(traverse (evalConstAlt rec env stk) alts)
+                         !(logDepth $ traverse (evalConstAlt rec env stk) alts)
                          def'
   eval rec env stk (CPrimVal fc c) = pure $ unload stk $ CPrimVal fc c
   eval rec env stk (CErased fc) = pure $ unload stk $ CErased fc
@@ -291,9 +323,11 @@ mutual
             Core (CCaseScope free)
   evalScope fc rec env stk (CRHS tm) = pure $ CRHS !(eval rec env stk tm)
   evalScope fc rec env stk (CArg x sc)
-      = do xn <- genName "cv"
+      = do log "compiler.inline.io_bind" 50 "Attempting to extendLoc, env: \{show env}]"
+           xn <- genName "cv"
            let env' = env :< CRef fc xn
-           sc' <- evalScope fc rec env' stk sc
+           sc' <- logDepth $ evalScope fc rec env' stk sc
+           log "compiler.inline.io_bind" 50 "Attempting to extendLoc"
            pure (CArg x (refToLocalScope xn x sc'))
 
   evalAlt : {vars, free : _} ->
@@ -303,7 +337,9 @@ mutual
             CConAlt (free ++ vars) ->
             Core (CConAlt free)
   evalAlt {free} {vars} fc rec env stk (MkConAlt n ci t sc)
-      = pure $ MkConAlt n ci t !(evalScope fc rec env stk sc)
+      = do log "compiler.inline.io_bind" 50 $ "Attempting to evalAlt, env: \{show env}"
+           sc' <- evalScope fc rec env stk sc
+           pure $ MkConAlt n ci t sc'
 
   evalConstAlt : {vars, free : _} ->
                  {auto c : Ref Ctxt Defs} ->
@@ -338,7 +374,7 @@ mutual
   pickAlt {vars} {free} rec env stk con@(CCon fc n ci t args) (MkConAlt n' _ t' sc :: alts) def
       = if matches n t n' t'
            then evalPickedAlt rec env stk args sc
-           else pickAlt rec env stk con alts def
+           else logDepth $ pickAlt rec env stk con alts def
     where
       matches : Name -> Maybe Int -> Name -> Maybe Int -> Bool
       matches _ (Just t) _ (Just t') = t == t'
@@ -358,7 +394,7 @@ mutual
   pickConstAlt {vars} {free} rec env stk (CPrimVal fc c) (MkConstAlt c' sc :: alts) def
       = if c == c'
            then Just <$> eval rec env stk sc
-           else pickConstAlt rec env stk (CPrimVal fc c) alts def
+           else logDepth $ pickConstAlt rec env stk (CPrimVal fc c) alts def
   pickConstAlt rec env stk _ _ _ = pure Nothing
 
 -- Inlining may have messed with function arity (e.g. by adding lambdas to
@@ -454,7 +490,7 @@ doEval : {args : _} ->
          (n : Name) -> (exp : CExp args) -> Core (CExp args)
 doEval n exp
     = do l <- newRef LVar (the Int 0)
-         log "compiler.inline.eval" 10 (show n ++ ": " ++ show exp)
+         log "compiler.inline.eval" 10 ("Origin: " ++ show n ++ ": " ++ show exp)
          exp' <- logDepth $ eval [] [<] [] exp
          log "compiler.inline.eval" 10 ("Inlined: " ++ show exp')
          pure exp'
@@ -469,7 +505,9 @@ inline n d = pure d
 mergeLam : {auto c : Ref Ctxt Defs} ->
            CDef -> Core CDef
 mergeLam (MkFun args def)
-    = do let (args' ** exp') = mergeLambdas args def
+    = do log "compiler.inline.io_bind" 50 "mergeLam, args: \{show args}, def: \{show def}"
+         let (args' ** exp') = mergeLambdas args def
+         log "compiler.inline.io_bind" 50 "mergeLam, args': \{show args'}, exp': \{show exp'}"
          pure $ MkFun args' exp'
 mergeLam d = pure d
 

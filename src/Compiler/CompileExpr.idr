@@ -351,7 +351,8 @@ conCases : {vars : _} ->
            Core (List (CConAlt vars))
 conCases n [] = pure []
 conCases n (ConCase fc x tag sc :: ns)
-    = do defs <- get Ctxt
+    = do log "compiler.newtype.world" 50 "conCases-2 on \{show n} x: \{show x}, sc: \{show sc}"
+         defs <- get Ctxt
          Just gdef <- lookupCtxtExact x (gamma defs)
               | Nothing => -- primitive type match
                    do xn <- getFullName x
@@ -363,8 +364,11 @@ conCases n (ConCase fc x tag sc :: ns)
          case nt of
               Just pos => conCases n ns -- skip it
               _ => do xn <- getFullName x
-                      sc' <- toCExpScope 0 (eraseArgs gdef) sc
+                      let erased = eraseArgs gdef
+                      log "compiler.newtype.world" 50 "conCases-2 on \{show n} erased: \{show erased}"
+                      sc' <- toCExpScope 0 erased sc
                       ns' <- conCases n ns
+                      log "compiler.newtype.world" 50 "conCases-2 on \{show n} ns': \{show ns'}"
                       if dcon (definition gdef)
                          then pure $ MkConAlt xn !(dconFlag xn) (Just tag) sc' :: ns'
                          else pure $ MkConAlt xn !(dconFlag xn) Nothing sc' :: ns'
@@ -429,8 +433,10 @@ getNewType fc scr n (ConCase _ x tag sc :: ns)
          let Just (noworld, pos) = newTypeArg di
               | _ => pure Nothing
          if noworld
-            then substScr 0 pos scr Lin sc
-            else substLetScr 0 pos scr Lin sc
+            then do log "compiler.newtype.world" 50 "Inlining case on \{show n} (no world)"
+                    substScr 0 pos scr Lin sc
+            else do log "compiler.newtype.world" 25 "Kept the scrutinee \{show n} \{show pos} sc \{show sc}, vars: \{show $ toList vars}, scr: \{show scr}"
+                    substLetScr 0 pos scr Lin sc
   where
     -- no %World, so substitute diretly
     substScr : {args : _} ->
@@ -480,11 +486,13 @@ toCExpCase n fc x (DelayCase _ ty arg sc :: rest)
           CLet fc arg True (CForce fc LInf (weaken x)) $
                !(toCExp n sc)
 toCExpCase n fc sc alts@(ConCase _ _ _ _ :: _)
-    = do Nothing <- getNewType fc sc n alts
+    = do log "compiler.newtype.world" 50 "toCExpCase'-1 on \{show n} x: sc: \{show sc}, alts: \{show alts}"
+         Nothing <- getNewType fc sc n alts
              | Just def => pure def
          defs <- get Ctxt
          cases <- conCases n alts
          def <- getDef n alts
+         log "compiler.newtype.world" 50 "toCExpCase'-1 on \{show n} cases: \{show cases}, def: \{show def}"
          if isNil cases
             then pure (fromMaybe (CErased fc) def)
             else unitTree $ enumTree !(builtinNatTree $
@@ -736,10 +744,13 @@ toCDef : {auto c : Ref Ctxt Defs} ->
 toCDef n ty _ None
     = pure $ MkError $ CCrash emptyFC ("Encountered undefined name " ++ show !(getFullName n))
 toCDef n ty erased (Function fi _ tree _)
-    = do s <- newRef NextMN 0
+    = do log "compiler.newtype.world" 25 "toCDef PMDef ty: \{show ty}, n: \{show n}, erased: \{show erased}, tree: \{show tree}"
+         s <- newRef NextMN 0
          t <- toCExp n tree
+         log "compiler.newtype.world" 25 "toCDef PMDef t: \{show t}"
          let (args ** comptree) = mergeLambdas [<] t
          let (args' ** p) = mkSub args erased
+         log "compiler.newtype.world" 25 "toCDef PMDef comptree \{show comptree}, is_ext: \{show $ (externalDecl fi)}"
          pure $ toLam (externalDecl fi) $ if isNil erased
             then MkFun args comptree
             else MkFun args' (shrinkCExp p comptree)
@@ -814,7 +825,8 @@ compileDef n
            -- traversing everything from the main expression.
            -- For now, consider it an incentive not to have cycles :).
             then recordWarning (GenericWarn ("Compiling hole " ++ show n))
-            else do ce <- logDepth $ toCDef n (type gdef) (eraseArgs gdef)
+            else do log "compiler.newtype.world" 25 "compileDef name \{show n}, type gdef: \{show $ type gdef}"
+                    ce <- logDepth $ toCDef n (type gdef) (eraseArgs gdef)
                            !(toFullNames (definition gdef))
                     setCompiled n ce
   where

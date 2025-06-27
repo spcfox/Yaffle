@@ -281,7 +281,7 @@ parameters {auto c : Ref Ctxt Defs}
 
   namespace Term
     export
-    convert : Env Term vars -> Term vars -> Term vars -> Core Bool
+    convert : {vars : _} -> Env Term vars -> Term vars -> Term vars -> Core Bool
     convert env x y
         = do x' <- nf env x
              y' <- nf env y

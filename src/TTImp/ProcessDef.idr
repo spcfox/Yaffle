@@ -28,6 +28,8 @@ import TTImp.ProcessType
 import TTImp.Unelab
 import TTImp.WithClause
 
+import Idris.Pretty.Context
+
 import Data.Either
 import Data.List
 import Libraries.Data.NameMap
@@ -288,6 +290,7 @@ findLinear top bound rig tm
                     Just nty <- lookupTyExact n (gamma defs)
                          | Nothing => pure []
                     logTerm "declare.def.lhs" 5 ("Type of " ++ show !(toFullNames n)) nty
+                    log "declare.def.lhs" 5 ("Args: " ++ show !(traverse toFullNames $ toList args))
                     findLinArg (accessible nt rig) args
            _ => pure []
     where
@@ -413,11 +416,13 @@ checkLHS {vars} trans mult n opts nest env fc lhs_in
          -- so we only need to do the holes. If there's a lot of type level
          -- computation, this is a huge saving!
          lhstm <- normaliseLHS lhsenv lhstm
-         lhsty <- normaliseHoles env lhsty
-         linvars_in <- findLinear True 0 linear lhstm
          logTerm "declare.def.lhs" 10 "Checked LHS term after normalise" lhstm
+         linvars_in <- findLinear True 0 linear lhstm
          log "declare.def.lhs" 5 $ "Linearity of names in " ++ show n ++ ": " ++
                  show linvars_in
+
+         lhsty <- normaliseHoles env lhsty
+         logTerm "declare.def.lhs" 10 "lhsty" lhsty
 
          linvars <- combineLinear fc linvars_in
          let lhstm_lin = setLinear linvars lhstm
@@ -794,7 +799,13 @@ mkRunTime fc (ct, n)
                               _ => pats'
            (tree_rt, _) <- getPMDef (location gdef) ct RunTime n ty clauses
 
-           log "compile.casetree" 10 $ show tree_rt
+          --  logC "compile.casetree" 5 $ do
+          --    tree_rt <- toFullNames tree_rt
+          --    pure $ unlines
+          --      [ show cov ++ ":"
+          --      , "Runtime tree for " ++ show (fullname gdef) ++ ":"
+          --      , show (indent 2 $ prettyTree tree_rt)
+          --      ]
            ignore $ addDef n $
                        { definition := Function pi tree_ct tree_rt (Just pats)
                        } gdef
@@ -929,7 +940,7 @@ processDef opts nest env fc n_in cs_in
 
          -- Dynamically rebind default totality requirement to this function's totality requirement
          -- and use this requirement when processing `with` blocks
-         log "declare.def" 5 $ "Traversing clauses of " ++ show n ++ " with mult " ++ show mult
+         log "declare.def" 5 $ "Traversing clauses of " ++ show n ++ " with mult " ++ show mult ++ " in " ++ show cs_in
          let treq = fromMaybe !getDefaultTotalityOption (findSetTotal (flags gdef))
          cs <- withTotality treq $
                traverse (checkClause mult (visibility gdef) treq

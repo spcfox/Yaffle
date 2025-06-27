@@ -152,11 +152,13 @@ parameters {auto c : Ref Ctxt Defs} {auto u : Ref UST UState}
       = do -- Do later arguments first, since they may depend on earlier
            -- arguments and use their solutions.
            cs <- unifyArgs mode loc env cxs cys
+           logC "unify" 20 $ pure $ "unifyArgs done: " ++ show cs
            -- We might know more about cx and cy now, so normalise again to
            -- reduce any newly solved holes
            cx' <- nf env !(quote env !cx)
            cy' <- nf env !(quote env !cy)
            res <- unify (lower mode) loc env cx' cy'
+           logC "unify" 20 $ pure $ "unify done: " ++ show res
            pure (union res cs)
   unifyArgs mode loc env _ _ = ufail loc ""
 
@@ -255,8 +257,9 @@ parameters {auto c : Ref Ctxt Defs} {auto u : Ref UST UState}
                             (\ty => getArgTypes !(expand !(nf env (embed ty)))
                                                 $ reverse (map value args'))
                             nty
---            -- If the rightmost arguments have the same type, or we don't
---            -- know the types of the arguments, we'll get on with it.
+           log "unify.invertible" 10 "Unifying invertible vty: \{show vty}"
+           -- If the rightmost arguments have the same type, or we don't
+           -- know the types of the arguments, we'll get on with it.
            if !(headsConvert mode fc env vargTys nargTys)
               then
                 -- Unify the rightmost arguments, with the goal of turning the
@@ -392,9 +395,11 @@ parameters {auto c : Ref Ctxt Defs} {auto u : Ref UST UState}
            let pargs = if isLin margs' then margs else margs ++ margs'
            defs <- get Ctxt
            logNF "elab" 10 ("Trying to solve " ++ show mname ++ " with") env tmnf
-           case !(patternEnv env pargs) of
+           patEnv <- patternEnv env pargs
+           case patEnv of
                 Nothing =>
-                  do Just hdef <- lookupCtxtExact (Resolved mref) (gamma defs)
+                  do log "unify.hole" 10 $ "unifyHole patEnv: Nothing"
+                     Just hdef <- lookupCtxtExact (Resolved mref) (gamma defs)
                         | _ => postponePatVar swap mode fc env mname mref args sp tmnf
                      let Hole _ _ = definition hdef
                         | _ => postponePatVar swap mode fc env mname mref args sp tmnf
@@ -402,7 +407,8 @@ parameters {auto c : Ref Ctxt Defs} {auto u : Ref UST UState}
                         then unifyHoleApp swap mode fc env mname mref args sp !(expand tmnf)
                         else postponePatVar swap mode fc env mname mref args sp tmnf
                 Just (newvars ** (locs, submv)) =>
-                  do Just hdef <- lookupCtxtExact (Resolved mref) (gamma defs)
+                  do log "unify.hole" 10 $ "unifyHole patEnv newvars: \{show newvars}, locs: \{show locs}, submv: \{show submv}"
+                     Just hdef <- lookupCtxtExact (Resolved mref) (gamma defs)
                          | _ => postponePatVar swap mode fc env mname mref args sp tmnf
                      let Hole _ _ = definition hdef
                          | wat => postponeS {f=Normal} swap fc mode "Delayed hole" env
@@ -467,9 +473,12 @@ parameters {auto c : Ref Ctxt Defs} {auto u : Ref UST UState}
            else postpone fc mode "Postponing local app"
                          env x y
   unifyNotMetavar mode fc env x@(VDCon fcx nx tx ax spx) y@(VDCon fcy ny ty ay spy)
-      = if tx == ty
-           then unifySpine mode fc env spx spy
-           else convertError fc env x y
+      = do log "unify" 20 $ "Comparing type constructors " ++ show nx ++ " and " ++ show ny
+           if tx == ty
+              then do logC "unify" 20 $
+                      pure $ "Constructor " ++ show nx
+                      unifySpine mode fc env spx spy
+              else convertError fc env x y
   unifyNotMetavar mode fc env x@(VTCon fcx nx ax spx) y@(VTCon fcy ny ay spy)
       = if nx == ny
            then unifySpine mode fc env spx spy

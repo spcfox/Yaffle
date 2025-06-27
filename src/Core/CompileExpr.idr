@@ -238,9 +238,9 @@ mutual
     show (NmForce _ lr x) = "(%force " ++ show lr ++ " " ++ show x ++ ")"
     show (NmDelay _ lr x) = "(%delay " ++ show lr ++ " " ++ show x ++ ")"
     show (NmConCase _ sc xs def)
-        = assert_total $ "(%case " ++ show sc ++ " " ++ show xs ++ " " ++ show def ++ ")"
+        = assert_total $ "(%case con " ++ show sc ++ " " ++ show xs ++ " " ++ show def ++ ")"
     show (NmConstCase _ sc xs def)
-        = assert_total $ "(%case " ++ show sc ++ " " ++ show xs ++ " " ++ show def ++ ")"
+        = assert_total $ "(%case const " ++ show sc ++ " " ++ show xs ++ " " ++ show def ++ ")"
     show (NmPrimVal _ x) = show x
     show (NmErased _) = "___"
     show (NmCrash _ x) = "(CRASH " ++ show x ++ ")"
@@ -366,6 +366,11 @@ export
 covering
 {vars : _} -> Show (CExp vars) where
   show exp = show (forget exp)
+
+public export
+covering
+{vars : _} -> Show (CConAlt vars) where
+  show (MkConAlt name ci t sc) = "{MkConAlt name: \{show name}, ci: \{show ci}, t: \{show t}"
 
 export
 covering
