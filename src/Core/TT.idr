@@ -1158,22 +1158,22 @@ mutual
         showApp (Meta _ n _ args) []
             = "?" ++ show n ++ "_" ++ show args
         showApp (Bind _ x (Lam _ c info ty) sc) []
-            = "\\" ++ withPiInfo info (show c ++ show x ++ " : " ++ show ty) ++
+            = "\\" ++ withPiInfo info (showCount c ++ show x ++ " : " ++ show ty) ++
               " => " ++ show sc
         showApp (Bind _ x (Let _ c val ty) sc) []
-            = "let " ++ show c ++ show x ++ " : " ++ show ty ++
+            = "let " ++ showCount c ++ show x ++ " : " ++ show ty ++
               " = " ++ show val ++ " in " ++ show sc
         showApp (Bind _ x (Pi _ c info ty) sc) []
-            = withPiInfo info (show c ++ show x ++ " : " ++ show ty) ++
+            = withPiInfo info (showCount c ++ show x ++ " : " ++ show ty) ++
               " -> " ++ show sc
         showApp (Bind _ x (PVar _ c info ty) sc) []
-            = withPiInfo info ("pat " ++ show c ++ show x ++ " : " ++ show ty) ++
+            = withPiInfo info ("pat " ++ showCount c ++ show x ++ " : " ++ show ty) ++
               " => " ++ show sc
         showApp (Bind _ x (PLet _ c val ty) sc) []
-            = "plet " ++ show c ++ show x ++ " : " ++ show ty ++
+            = "plet " ++ showCount c ++ show x ++ " : " ++ show ty ++
               " = " ++ show val ++ " in " ++ show sc
         showApp (Bind _ x (PVTy _ c ty) sc) []
-            = "pty " ++ show c ++ show x ++ " : " ++ show ty ++
+            = "pty " ++ showCount c ++ show x ++ " : " ++ show ty ++
               " => " ++ show sc
         showApp (App _ _ _ _) [] = "[can't happen]"
         showApp (As _ _ n tm) [] = show n ++ "@" ++ show tm

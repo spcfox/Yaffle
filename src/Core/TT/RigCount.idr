@@ -44,9 +44,9 @@ rigRestrict a RigW = rigRestrictW a
 
 export
 Show RigCount where
-  show Rig0 = "0"
-  show Rig1 = "1"
-  show RigW = ""
+  show Rig0 = "Rig0"
+  show Rig1 = "Rig1"
+  show RigW = "RigW"
 
 export
 Eq RigCount where
