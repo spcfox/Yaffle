@@ -308,7 +308,9 @@ parameters {auto c : Ref Ctxt Defs} (eflags : EvalFlags)
       keepBinder KeepLet = True
       keepBinder HolesOnly = True
       keepBinder _ = False
-  evalLocal env fc First (locs :< x) = x
+  evalLocal env fc First (locs :< x)
+      = do log "eval.ref" 50 $ "evalLocal-2"
+           x
   evalLocal env fc (Later p) (locs :< x) = evalLocal env fc p locs
 
   evalPiInfo : {free, vars : _} -> LocalEnv free vars ->
@@ -379,13 +381,24 @@ parameters {auto c : Ref Ctxt Defs} (eflags : EvalFlags)
   evalRef locs env fc nt n
       = do defs <- get Ctxt
            Just def <- lookupCtxtExact n (gamma defs)
-                | Nothing => pure (VApp fc nt n [<] (pure Nothing))
+                | Nothing => do logC "eval.stuck.outofscope" 5 $ do
+                                  n' <- toFullNames n
+                                  pure $ "Stuck function: " ++ show n'
+                                pure (VApp fc nt n [<] (pure Nothing))
            let Function fi fn _ _ = definition def
-                | _ => pure (VApp fc nt n [<] (pure Nothing))
+                | res => do logC "eval.def.stuck" 50 $ do
+                              n <- toFullNames n
+                              pure "Cannot reduce def \{show n}: it is a \{show res}"
+                            pure (VApp fc nt n [<] (pure Nothing))
            if alwaysReduce fi || (reduceForTC eflags (flags def))
-              then eval locs env (embed fn)
+              then do logC "eval.def.stuck" 50 $ do
+                        def <- toFullNames def
+                        pure "Refusing to reduce \{show $ definition def}"
+                      eval locs env (embed fn)
               else pure $ VApp fc nt n [<] $
-                          do res <- eval locs env (embed fn)
+                          do log "eval.def.stuck" 50 $ "pre-evalTree args: tree: " ++ show fn
+                             logDepth $ logLocalEnv "eval.def.stuck" 50 "locs" locs
+                             res <- eval locs env (embed fn)
                              pure (Just res)
     where
       reduceForTC : EvalFlags -> List DefFlag -> Bool

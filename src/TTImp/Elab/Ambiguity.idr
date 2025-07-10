@@ -43,7 +43,7 @@ expandAmbigName mode nest env orig args (IVar fc x) exp
              case defined x env of
                   Just _ =>
                     if isNil args || notLHS mode
-                       then do log "elab.ambiguous" 10 $ "Defined in env " ++ show x
+                       then do log "elab.ambiguous" 20 $ "Defined in env " ++ show x
                                pure $ orig
                        else pure $ IMustUnify fc VarApplied orig
                   Nothing =>
@@ -59,12 +59,15 @@ expandAmbigName mode nest env orig args (IVar fc x) exp
                             ns <- lookupCtxtName x (gamma defs)
                             ns' <- filterM visible ns
                             case ns' of
-                               [] => do log "elab.ambiguous" 10 $ "Failed to find " ++ show orig
+                               [] => do log "elab.ambiguous" 50 $ "Failed to find " ++ show orig
                                         pure orig
                                [nalt] =>
-                                     do log "elab.ambiguous" 10 $ "Only one " ++ show (fst nalt)
+                                     do log "elab.ambiguous" 40 $ "Only one " ++ show (fst nalt)
                                         pure $ mkAlt primApp est nalt
-                               nalts => pure $ IAlternative fc
+                               nalts =>
+                                     do log "elab.ambiguous" 10 $
+                                          "Ambiguous: " ++ joinBy ", " (map (show . fst) nalts)
+                                        pure $ IAlternative fc
                                                       (uniqType primNs x args)
                                                       (map (mkAlt primApp est) nalts)
   where
@@ -157,7 +160,7 @@ expandAmbigName mode nest env orig args (IAutoApp fc f a) exp
     = expandAmbigName mode nest env orig
                       ((fc, Just Nothing, a) :: args) f exp
 expandAmbigName elabmode nest env orig args tm exp
-    = do log "elab.ambiguous" 10 $ "No ambiguity " ++ show orig
+    = do log "elab.ambiguous" 50 $ "No ambiguity " ++ show orig
          pure orig
 
 stripDelay : {auto c : Ref Ctxt Defs} ->

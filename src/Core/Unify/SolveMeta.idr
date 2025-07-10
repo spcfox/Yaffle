@@ -234,7 +234,7 @@ parameters {auto c : Ref Ctxt Defs} {auto c : Ref UST UState}
                  log "unify.instantiate" 5 "Postponed"
                  pure False
 
-           logTerm "unify.instantiate" 5 (show mname ++ " definition:") rhs
+           logTerm "unify.instantiate" 5 "Definition" rhs
            let simpleDef = MkFnInfo (SolvedHole num)
                                      (not (isUserName mname) && isSimple rhs)
                                      False
