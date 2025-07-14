@@ -86,7 +86,7 @@ scEq'' substs s t@(VApp _ Bound nm _ _)
     = do False <- scEq' substs s t
            | True => pure True
          case lookup nm substs of
-           Just ts => anyM (scEq substs s) $ toList ts
+           Just ts => anyMSnoc (scEq substs s) ts
            Nothing => pure False
 scEq'' substs s t = scEq' substs s t
 
@@ -124,8 +124,7 @@ smallerArg inc big substs s tm
          then pure True
          else case tm of
                    VDCon _ _ _ _ sp
-                       => anyM (smaller True big substs s)
-                                (cast !(traverseSnocList value sp))
+                       => anyMSnoc (smaller True big substs s) !(traverseSnocList value sp)
                    _ => case s of
                              VApp fc nt n sp@(_ :< _) _ =>
                                 -- Higher order recursive argument
@@ -154,7 +153,7 @@ smaller inc big substs s t@(VApp _ Bound nm _ _)
     = do False <- smaller' inc big substs s t
            | True => pure True
          case lookup nm substs of
-           Just ts => anyM (smaller inc big substs s) $ toList ts
+           Just ts => anyMSnoc (smaller inc big substs s) ts
            Nothing => pure False
 smaller inc big substs s t = smaller' inc big substs s t
 
