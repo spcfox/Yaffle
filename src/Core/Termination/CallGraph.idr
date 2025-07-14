@@ -279,14 +279,6 @@ replaceInArgs v tm ((n, arg) :: args)
             then pure $ (n, arg) :: !(replaceInArgs v tm args)
             else pure $ (n, arg) :: (n, arg') :: !(replaceInArgs v tm args)
 
-expandForced : List (Glued [<], Glued [<]) ->
-               List (Nat, Glued [<]) -> Core (List (Nat, Glued [<]))
-expandForced [] args = pure args
--- Only useful if the equality evaluated to a bound name that we know about
-expandForced ((VApp _ Bound n _ _, tm) :: fs) args
-    = expandForced fs !(replaceInArgs n tm args)
-expandForced (_ :: fs) args = expandForced fs args
-
 findSCscope : {auto c : Ref Ctxt Defs} ->
               {auto v : Ref SCVar Int} ->
          Guardedness ->
@@ -332,9 +324,8 @@ findSCalt g eqs args var (VDelayCase fc ty arg tm)
          varg <- nextVar
          let pat = VDelay fc LUnknown targ varg
          (eqs, rhs) <- tm (pure targ) (pure varg)
-         findSC g eqs !(expandForced eqs
-                     !(maybe (pure args)
-                             (\v => replaceInArgs v pat args) var))
+         findSC g eqs !(maybe (pure args)
+                              (\v => replaceInArgs v pat args) var)
                   rhs
 findSCalt g eqs args var (VConstCase fc c tm)
     = findSC g eqs !(maybe (pure args)
