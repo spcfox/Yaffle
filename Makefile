@@ -262,7 +262,7 @@ bootstrap: support
 	mkdir -p bootstrap-build/yaffle_app
 	cp support/c/${IDRIS2_SUPPORT} bootstrap-build/yaffle_app/
 	sed 's/libyaffle_support.so/${IDRIS2_SUPPORT}/g; s|__PREFIX__|${IDRIS2_BOOT_PREFIX}|g' \
-		bootstrap/yaffle_app/yaffle.ss \
+		bootstrap/idris2_app/idris2.ss \
 		> bootstrap-build/yaffle_app/yaffle-boot.ss
 	$(SHELL) ./bootstrap-stage1-chez.sh
 	IDRIS2_CG="chez" $(SHELL) ./bootstrap-stage2.sh
