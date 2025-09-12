@@ -68,10 +68,10 @@ public export
 AltType : Type
 
 public export
-data AltType' : Type -> Type where
+data AltType' : Type -> Type
 
 public export
-data RawImp' : Type -> Type where
+data RawImp' : Type -> Type
 
 public export
 FnOpt : Type
