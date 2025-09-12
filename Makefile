@@ -1,13 +1,12 @@
-# This is (mostly) the Idris2 Makefile with s/idris2/yaffle/ and the
-# library building removed. Not all of it makes sense yet; it will be
-# reinstated gradually
+# This is (mostly) the Idris2 Makefile with the library building removed.
+# Not all of it makes sense yet; it will be reinstated gradually
 include config.mk
 
 # Idris 2 executable used to bootstrap
 export IDRIS2_BOOT ?= idris2
 
 # Idris 2 executable we're building
-NAME = yaffle
+NAME = idris2
 TARGETDIR = ${CURDIR}/build/exec
 TARGET = ${TARGETDIR}/${NAME}
 
@@ -32,8 +31,8 @@ VERSION_TAG ?= $(GIT_SHA1)
 export IDRIS2_VERSION := ${MAJOR}.${MINOR}.${PATCH}
 export NAME_VERSION := ${NAME}-${IDRIS2_VERSION}
 IDRIS2_SUPPORT := libidris2_support${SHLIB_SUFFIX}
-IDRIS2_APP_IPKG := yaffle.ipkg
-IDRIS2_LIB_IPKG := yaffleapi.ipkg
+IDRIS2_APP_IPKG := idris2.ipkg
+IDRIS2_LIB_IPKG := idris2api.ipkg
 
 ifeq ($(OS), windows)
 	# This produces D:/../.. style paths
@@ -60,11 +59,11 @@ export IDRIS2_BOOT_PATH := "$(IDRIS2_BOOT_PATH)"
 
 export SCHEME
 
-.PHONY: all yaffle-exec libdocs testenv testenv-clean support support-clean clean FORCE
+.PHONY: all idris2-exec libdocs testenv testenv-clean support support-clean clean FORCE
 
 all: support ${TARGET} libs
 
-yaffle-exec: ${TARGET}
+idris2-exec: ${TARGET}
 
 ${TARGET}: src/IdrisPaths.idr
 	${IDRIS2_BOOT} --build ${IDRIS2_APP_IPKG}
@@ -162,8 +161,8 @@ retest: testenv
 	@${MAKE} -C tests retest only=$(only) IDRIS2=${TARGET} IDRIS2_PREFIX=${TEST_PREFIX}
 
 test-installed:
-	@${MAKE} -C tests testbin      IDRIS2=$(IDRIS2_PREFIX)/bin/yaffle IDRIS2_PREFIX=${IDRIS2_PREFIX}
-	@${MAKE} -C tests only=$(only) IDRIS2=$(IDRIS2_PREFIX)/bin/yaffle IDRIS2_PREFIX=${IDRIS2_PREFIX}
+	@${MAKE} -C tests testbin      IDRIS2=$(IDRIS2_PREFIX)/bin/idris2 IDRIS2_PREFIX=${IDRIS2_PREFIX}
+	@${MAKE} -C tests only=$(only) IDRIS2=$(IDRIS2_PREFIX)/bin/idris2 IDRIS2_PREFIX=${IDRIS2_PREFIX}
 
 support:
 	@${MAKE} -C support/c
@@ -261,21 +260,21 @@ install-libdocs: libdocs
 bootstrap: support
 	@if [ "$$(echo '(threaded?)' | $(SCHEME) --quiet)" = "#f" ] ; then \
 		echo "ERROR: Chez is missing threading support" ; exit 1 ; fi
-	mkdir -p bootstrap-build/yaffle_app
-	cp support/c/${IDRIS2_SUPPORT} bootstrap-build/yaffle_app/
-	sed 's/libyaffle_support.so/${IDRIS2_SUPPORT}/g; s|__PREFIX__|${IDRIS2_BOOT_PREFIX}|g' \
+	mkdir -p bootstrap-build/idris2_app
+	cp support/c/${IDRIS2_SUPPORT} bootstrap-build/idris2_app/
+	sed 's/libidris2_support.so/${IDRIS2_SUPPORT}/g; s|__PREFIX__|${IDRIS2_BOOT_PREFIX}|g' \
 		bootstrap/idris2_app/idris2.ss \
-		> bootstrap-build/yaffle_app/yaffle-boot.ss
+		> bootstrap-build/idris2_app/idris2-boot.ss
 	$(SHELL) ./bootstrap-stage1-chez.sh
 	IDRIS2_CG="chez" $(SHELL) ./bootstrap-stage2.sh
 
 # Bootstrapping using racket
 bootstrap-racket: support
-	mkdir -p bootstrap-build/yaffle_app
-	cp support/c/${IDRIS2_SUPPORT} bootstrap-build/yaffle_app/
+	mkdir -p bootstrap-build/idris2_app
+	cp support/c/${IDRIS2_SUPPORT} bootstrap-build/idris2_app/
 	sed 's|__PREFIX__|${IDRIS2_BOOT_PREFIX}|g' \
-		bootstrap/yaffle_app/yaffle.rkt \
-		> bootstrap-build/yaffle_app/yaffle-boot.rkt
+		bootstrap/idris2_app/idris2.rkt \
+		> bootstrap-build/idris2_app/idris2-boot.rkt
 	$(SHELL) ./bootstrap-stage1-racket.sh
 	IDRIS2_CG="racket" $(SHELL) ./bootstrap-stage2.sh
 

@@ -4,7 +4,7 @@ version = 0.6.0
 sourcedir = "src"
 
 modules
-  = 
+  =
     -- Idris-specific compiler back ends
     Compiler.ANF,
     Compiler.CaseOpts,
@@ -188,7 +188,7 @@ modules
     TTImp.Utils,
     TTImp.WithClause,
 
-    -- Elaborating TTImp to the Core TT 
+    -- Elaborating TTImp to the Core TT
     TTImp.Elab,
     TTImp.Elab.Ambiguity,
     TTImp.Elab.App,
@@ -315,7 +315,7 @@ modules
     Yaffle.REPL
 
 main = Idris.Main
-executable = yaffle
+executable = idris2
 
 depends = network
 
