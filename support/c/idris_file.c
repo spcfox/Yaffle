@@ -176,6 +176,59 @@ size_t idris2_writeBufferData(FILE *h, const char *buffer, size_t loc,
 
 int idris2_eof(FILE *f) { return feof(f); }
 
+struct filetime {
+  int atime_sec;
+  int atime_nsec;
+  int mtime_sec;
+  int mtime_nsec;
+  int ctime_sec;
+  int ctime_nsec;
+};
+
+struct filetime *idris2_fileTime(FILE *f) {
+  struct filetime *ft = malloc(sizeof(*ft));
+
+#ifdef _WIN32
+  if (win32_getFileTime(f, &ft->atime_sec, &ft->atime_nsec, &ft->mtime_sec,
+                        &ft->mtime_nsec, &ft->ctime_sec, &ft->ctime_nsec)) {
+    ft->atime_sec = -1;
+    return ft;
+  }
+
+  return ft;
+#else
+  int fd = idris2_getFileNo(f);
+
+  struct stat buf;
+  if (fstat(fd, &buf)) {
+    ft->atime_sec = -1;
+    return ft;
+  }
+
+  ft->atime_sec = buf.st_atime;
+  ft->mtime_sec = buf.st_mtime;
+  ft->ctime_sec = buf.st_ctime;
+
+#if defined(_DARWIN_C_SOURCE) ||                                               \
+    (!defined(_POSIX_C_SOURCE) && (defined(__MACH__) || defined(__APPLE__)))
+  ft->atime_nsec = buf.st_atimespec.tv_nsec;
+  ft->mtime_nsec = buf.st_mtimespec.tv_nsec;
+  ft->ctime_nsec = buf.st_ctimespec.tv_nsec;
+#elif (defined(_POSIX_VERSION) && _POSIX_VERSION >= 200809L) ||                \
+    defined(__FreeBSD__)
+  ft->atime_nsec = buf.st_atim.tv_nsec;
+  ft->mtime_nsec = buf.st_mtim.tv_nsec;
+  ft->ctime_nsec = buf.st_ctim.tv_nsec;
+#else
+  ft->atime_nsec = 0;
+  ft->mtime_nsec = 0;
+  ft->ctime_nsec = 0;
+#endif
+
+  return ft;
+#endif
+}
+
 int idris2_fileAccessTime(FILE *f) {
   int fd = idris2_getFileNo(f);
 
@@ -198,15 +251,24 @@ int idris2_fileModifiedTime(FILE *f) {
   }
 }
 
-int idris2_fileStatusTime(FILE *f) {
-  int fd = idris2_getFileNo(f);
+int idris2_filetimeAccessTimeSec(struct filetime *ft) { return ft->atime_sec; }
 
-  struct stat buf;
-  if (fstat(fd, &buf) == 0) {
-    return buf.st_ctime;
-  } else {
-    return -1;
-  }
+int idris2_filetimeAccessTimeNsec(struct filetime *ft) {
+  return ft->atime_nsec;
+}
+
+int idris2_filetimeModifiedTimeSec(struct filetime *ft) {
+  return ft->mtime_sec;
+}
+
+int idris2_filetimeModifiedTimeNsec(struct filetime *ft) {
+  return ft->mtime_nsec;
+}
+
+int idris2_filetimeStatusTimeSec(struct filetime *ft) { return ft->ctime_sec; }
+
+int idris2_filetimeStatusTimeNsec(struct filetime *ft) {
+  return ft->ctime_nsec;
 }
 
 int idris2_fileIsTTY(FILE *f) {
