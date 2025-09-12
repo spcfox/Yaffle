@@ -1,4 +1,4 @@
-package yaffle
+package idris2
 
 version = 0.7.0
 sourcedir = "src"
