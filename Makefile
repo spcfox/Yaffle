@@ -189,8 +189,8 @@ clean: clean-libs support-clean testenv-clean
 	${MAKE} -C tests clean
 	$(RM) -r build
 
-install: install-yaffle install-support install-libs
-bootstrap-install: install-yaffle install-support install-bootstrap-libs
+install: install-idris2 install-support install-libs
+bootstrap-install: install-idris2 install-support install-bootstrap-libs
 
 install-api: src/IdrisPaths.idr
 	${IDRIS2_BOOT} --install ${IDRIS2_LIB_IPKG}
@@ -198,7 +198,7 @@ install-api: src/IdrisPaths.idr
 install-with-src-api: src/IdrisPaths.idr
 	${IDRIS2_BOOT} --install-with-src ${IDRIS2_LIB_IPKG}
 
-install-yaffle:
+install-idris2:
 	mkdir -p ${PREFIX}/bin/
 	install ${TARGET} ${PREFIX}/bin
 ifeq ($(OS), windows)
