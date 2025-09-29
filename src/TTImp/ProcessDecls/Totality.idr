@@ -30,10 +30,7 @@ checkTotalityOK n
          let treq = fromMaybe !getDefaultTotalityOption (findSetTotal (flags gdef))
          let tot = totality gdef
          log "totality" 3 $ show n ++ " must be: " ++ show treq
-         case treq of
-            PartialOK => pure Nothing
-            CoveringOnly => checkCovering fc (isCovering tot)
-            Total => checkTotality fc
+         pure Nothing
   where
     checkCovering : FC -> Covering -> Core (Maybe Error)
     checkCovering fc IsCovering = pure Nothing

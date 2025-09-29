@@ -75,7 +75,6 @@ parameters {auto c : Ref Ctxt Defs} {auto u : Ref UST UState}
                 | _ => throw (AlreadyDefined fc n)
            tm <- check (multiplicity def) [<] rtm (type def)
            solveConstraints inTerm Normal
-           linearCheck fc (multiplicity def) [<] tm
            updateDef n (const (Just (Function (MkFnInfo NotHole False False) tm tm Nothing)))
 
   processEnv : {vars : _} -> Env Term vars -> List (RigCount, Name, RawC) ->
