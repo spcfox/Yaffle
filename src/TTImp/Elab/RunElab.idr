@@ -76,6 +76,18 @@ elabScript rig fc nest env script@(VDCon nfc nm t ar args) exp
 
     elabCon : Defs -> String -> List (Glued vars) -> Core (Glued vars)
     elabCon defs "Pure" [_,val] = pure val
+    elabCon defs "Map" [_,_,fm,act]
+        -- fm : A -> B
+        -- elab : A
+        = do act <- elabScript rig fc nest env !(expand act) exp
+             fm <- expand fm
+             apply fc fm top (pure act)
+    elabCon defs "Ap" [_,_,actF,actX]
+        -- actF : Elab (A -> B)
+        -- actX : Elab A
+        = do actF <- elabScript rig fc nest env !(expand actF) exp
+             actX <- elabScript rig fc nest env !(expand actX) exp
+             apply fc actF top (pure actX)
     elabCon defs "Bind" [_,_,act,k]
         -- act : Elab A
         -- k : A -> Elab B

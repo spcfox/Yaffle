@@ -17,6 +17,8 @@ import public Control.Monad.Trans
 export
 data Elab : Type -> Type where
      Pure : a -> Elab a
+     Map  : (a -> b) -> Elab a -> Elab b
+     Ap   : Elab (a -> b) -> Elab a -> Elab b
      Bind : Elab a -> (a -> Elab b) -> Elab b
      Fail : FC -> String -> Elab a
 
@@ -74,12 +76,12 @@ data Elab : Type -> Type where
 
 export
 Functor Elab where
-  map f e = Bind e $ Pure . f
+  map = Map
 
 export
 Applicative Elab where
   pure = Pure
-  f <*> a = Bind f (<$> a)
+  (<*>) = Ap
 
 export
 Alternative Elab where
