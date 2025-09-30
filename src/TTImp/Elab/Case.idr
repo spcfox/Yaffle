@@ -218,12 +218,8 @@ caseBlock {vars} rigc elabinfo fc nest env opts scr scrtm scrty caseRig alts exp
          put UST ({ delayedElab := [] } ust)
          processDecl [InCase] nest' [<] (IDef fc casen alts')
 
-         -- Set the case block to always reduce, so we get the core 'Case'
-         updateDef casen
-            (\d => case d of
-                        Function fi ct rt cs =>
-                          Just (Function ({ alwaysReduce := True } fi) ct rt cs)
-                        _ => Nothing)
+         let inlineOK = maybe False (const True) splitOn
+         when inlineOK $ setFlag fc casen Inline
 
          ust <- get UST
          put UST ({ delayedElab := olddelayed } ust)
