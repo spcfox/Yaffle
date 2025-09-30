@@ -182,7 +182,6 @@ clean-libs:
 	${MAKE} -C libs/network clean
 	${MAKE} -C libs/test clean
 	${MAKE} -C libs/linear clean
-	${MAKE} -C libs/papers clean
 
 clean: clean-libs support-clean testenv-clean
 	-${IDRIS2_BOOT} --clean ${IDRIS2_APP_IPKG}
@@ -206,7 +205,6 @@ ifeq ($(OS), windows)
 	-install ${TARGET}.cmd ${PREFIX}/bin
 endif
 	mkdir -p ${PREFIX}/lib/
-	install support/c/${IDRIS2_SUPPORT} ${PREFIX}/lib
 	mkdir -p ${PREFIX}/bin/${NAME}_app
 	install ${TARGETDIR}/${NAME}_app/* ${PREFIX}/bin/${NAME}_app
 
