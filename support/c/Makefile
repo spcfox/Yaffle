@@ -51,8 +51,8 @@ cleandep: clean
 
 .PHONY: install
 install: build
-	mkdir -p ${PREFIX}/yaffle-${IDRIS2_VERSION}/lib
-	mkdir -p ${PREFIX}/yaffle-${IDRIS2_VERSION}/support/c
-	install -m 755 $(DYLIBTARGET) ${PREFIX}/yaffle-${IDRIS2_VERSION}/lib
-	install -m 644 $(LIBTARGET)   ${PREFIX}/yaffle-${IDRIS2_VERSION}/lib
-	install -m 644 *.h            ${PREFIX}/yaffle-${IDRIS2_VERSION}/support/c
+	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/lib
+	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/c
+	install -m 755 $(DYLIBTARGET) ${PREFIX}/idris2-${IDRIS2_VERSION}/lib
+	install -m 644 $(LIBTARGET)   ${PREFIX}/idris2-${IDRIS2_VERSION}/lib
+	install -m 644 *.h            ${PREFIX}/idris2-${IDRIS2_VERSION}/support/c
