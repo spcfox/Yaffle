@@ -389,6 +389,10 @@ Show BuiltinType where
     show IntegerToNatural = "IntegerToNatural"
 
 export
+clearDefs : Defs -> Defs
+clearDefs defs = { gamma->inlineOnly := True } defs
+
+export
 initDefs : Core Defs
 initDefs
     = do gam <- initCtxt

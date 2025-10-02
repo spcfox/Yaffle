@@ -175,6 +175,59 @@ parameters {auto c : Ref Ctxt Defs} {auto u : Ref UST UState}
            pure (union cs res)
   unifySpine mode fc env _ _ = ufail fc ""
 
+  unifySpineMetaArg : {vars : _} ->
+               UnifyInfo -> FC -> Env Term vars ->
+               Spine vars -> Spine vars ->
+               Core UnifyResult
+  unifySpineMetaArg mode fc env [<] [<] = pure success
+  unifySpineMetaArg mode fc env (cxs :< ex) (cys :< ey)
+      = do -- We might know more about cx and cy now, so normalise again to
+           -- reduce any newly solved holes
+           cx' <- nf env !(quote env !(value ex))
+           cy' <- nf env !(quote env !(value ey))
+           logNF "unify.application" 20 "unifySpineMetaArg cx'" env cx'
+           logNF "unify.application" 20 "unifySpineMetaArg cy'" env cy'
+
+           res <- unifySpineEntry (lower mode) cx' cy'
+
+           cs <- unifySpineMetaArg mode fc env cxs cys
+           pure (union cs res)
+      where
+        unifySpineEntry : UnifyInfo -> Glued vars -> Glued vars -> Core UnifyResult
+        unifySpineEntry mode xnf ynf
+            = do defs <- get Ctxt
+                 let empty = clearDefs defs
+                 -- If one's a meta and the other isn't, don't reduce at all
+                 case (xnf, ynf) of
+                       (VMeta {}, VMeta {})
+                           => unify mode fc env xnf ynf
+                       (VMeta {}, _)
+                           => do ytm <- quote env ynf
+                                 put Ctxt empty
+                                 ynf' <- nf env ytm
+                                 put Ctxt defs
+                                 logC "unify" 20 $
+                                   do xtm <- quote env xnf
+                                      pure $ "Don't reduce at all (left): " ++ show xtm ++ " and " ++ show ytm
+                                 cs <- unify mode fc env xnf ynf'
+                                 case constraints cs of
+                                     [] => pure cs
+                                     _  => unify mode fc env xnf ynf
+                       (_, VMeta {})
+                           => do xtm <- quote env xnf
+                                 put Ctxt empty
+                                 xnf' <- nf env xtm
+                                 put Ctxt defs
+                                 logC "unify" 20 $
+                                   do ytm <- quote env ynf
+                                      pure $ "Don't reduce at all (right): " ++ show {ty=Term _} ytm ++ " and " ++ show xtm
+                                 cs <- unify mode fc env xnf' ynf
+                                 case constraints cs of
+                                     [] => pure cs
+                                     _  => do unify mode fc env xnf ynf
+                       _ => unify mode fc env xnf ynf
+  unifySpineMetaArg mode fc env _ _ = ufail fc ""
+
   convertSpine : {vars : _} ->
               FC -> Env Term vars ->
               Spine vars -> Spine vars ->
@@ -468,11 +521,11 @@ parameters {auto c : Ref Ctxt Defs} {auto u : Ref UST UState}
                          env x y
   unifyNotMetavar mode fc env x@(VDCon fcx nx tx ax spx) y@(VDCon fcy ny ty ay spy)
       = if tx == ty
-           then unifySpine mode fc env spx spy
+           then unifySpineMetaArg mode fc env spx spy
            else convertError fc env x y
   unifyNotMetavar mode fc env x@(VTCon fcx nx ax spx) y@(VTCon fcy ny ay spy)
       = if nx == ny
-           then unifySpine mode fc env spx spy
+           then unifySpineMetaArg mode fc env spx spy
            else convertError fc env x y
   unifyNotMetavar mode fc env (VDelayed _ _ x) (VDelayed _ _ y)
       = unify (lower mode) fc env x y
